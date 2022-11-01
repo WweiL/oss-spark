@@ -213,7 +213,7 @@ def range(
 
 
 def read_csv(
-    path: str,
+    path: Union[str, List[str]],
     sep: str = ",",
     header: Union[str, int, None] = "infer",
     names: Optional[Union[str, List[str]]] = None,
@@ -234,8 +234,8 @@ def read_csv(
 
     Parameters
     ----------
-    path : str
-        The path string storing the CSV file to be read.
+    path : str or list
+        Path(s) of the CSV file(s) to be read.
     sep : str, default ‘,’
         Delimiter to use. Non empty string.
     header : int, default ‘infer’
@@ -296,6 +296,10 @@ def read_csv(
     Examples
     --------
     >>> ps.read_csv('data.csv')  # doctest: +SKIP
+
+    Load multiple CSV files as a single DataFrame:
+
+    >>> ps.read_csv(['data-01.csv', 'data-02.csv'])  # doctest: +SKIP
     """
     # For latin-1 encoding is same as iso-8859-1, that's why its mapped to iso-8859-1.
     encoding_mapping = {"latin-1": "iso-8859-1"}
@@ -1191,7 +1195,7 @@ def read_excel(
                 )
 
                 reset_index = pdf.reset_index()
-                for name, col in reset_index.iteritems():
+                for name, col in reset_index.items():
                     dt = col.dtype
                     if is_datetime64_dtype(dt) or is_datetime64tz_dtype(dt):
                         continue

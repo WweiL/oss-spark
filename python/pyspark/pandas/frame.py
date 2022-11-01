@@ -1435,6 +1435,9 @@ class DataFrame(Frame, Generic[T]):
             * pearson : standard correlation coefficient
             * spearman : Spearman rank correlation
             * kendall : Kendall Tau correlation coefficient
+
+            .. versionchanged:: 3.4.0
+               support 'kendall' for method parameter
         min_periods : int, optional
             Minimum number of observations required per pair of columns
             to have a valid result.
@@ -1498,7 +1501,6 @@ class DataFrame(Frame, Generic[T]):
         sdf = internal.spark_frame
         index_1_col_name = verify_temp_column_name(sdf, "__corr_index_1_temp_column__")
         index_2_col_name = verify_temp_column_name(sdf, "__corr_index_2_temp_column__")
-        tuple_col_name = verify_temp_column_name(sdf, "__corr_tuple_temp_column__")
 
         # simple dataset
         # +---+---+----+
@@ -1536,16 +1538,7 @@ class DataFrame(Frame, Generic[T]):
         # |                  1|                  2|               null|               null|
         # |                  2|                  2|               null|               null|
         # +-------------------+-------------------+-------------------+-------------------+
-        sdf = sdf.select(F.explode(F.array(*pair_scols)).alias(tuple_col_name)).select(
-            F.col(f"{tuple_col_name}.{index_1_col_name}").alias(index_1_col_name),
-            F.col(f"{tuple_col_name}.{index_2_col_name}").alias(index_2_col_name),
-            F.col(f"{tuple_col_name}.{CORRELATION_VALUE_1_COLUMN}").alias(
-                CORRELATION_VALUE_1_COLUMN
-            ),
-            F.col(f"{tuple_col_name}.{CORRELATION_VALUE_2_COLUMN}").alias(
-                CORRELATION_VALUE_2_COLUMN
-            ),
-        )
+        sdf = sdf.select(F.inline(F.array(*pair_scols)))
 
         sdf = compute(sdf=sdf, groupKeys=[index_1_col_name, index_2_col_name], method=method)
         if method == "kendall":
@@ -1577,8 +1570,9 @@ class DataFrame(Frame, Generic[T]):
         # |                  2|                  0|            null|
         # +-------------------+-------------------+----------------+
 
+        auxiliary_col_name = verify_temp_column_name(sdf, "__corr_auxiliary_temp_column__")
         sdf = sdf.withColumn(
-            tuple_col_name,
+            auxiliary_col_name,
             F.explode(
                 F.when(
                     F.col(index_1_col_name) == F.col(index_2_col_name),
@@ -1586,10 +1580,10 @@ class DataFrame(Frame, Generic[T]):
                 ).otherwise(F.lit([0, 1]))
             ),
         ).select(
-            F.when(F.col(tuple_col_name) == 0, F.col(index_1_col_name))
+            F.when(F.col(auxiliary_col_name) == 0, F.col(index_1_col_name))
             .otherwise(F.col(index_2_col_name))
             .alias(index_1_col_name),
-            F.when(F.col(tuple_col_name) == 0, F.col(index_2_col_name))
+            F.when(F.col(auxiliary_col_name) == 0, F.col(index_2_col_name))
             .otherwise(F.col(index_1_col_name))
             .alias(index_2_col_name),
             F.col(CORRELATION_CORR_OUTPUT_COLUMN),
@@ -1616,9 +1610,9 @@ class DataFrame(Frame, Generic[T]):
         )
 
         for i in range(0, num_scols):
-            sdf = sdf.withColumn(tuple_col_name, F.get(F.col(array_col_name), i)).withColumn(
+            sdf = sdf.withColumn(auxiliary_col_name, F.get(F.col(array_col_name), i)).withColumn(
                 numeric_col_names[i],
-                F.col(f"{tuple_col_name}.{CORRELATION_CORR_OUTPUT_COLUMN}"),
+                F.col(f"{auxiliary_col_name}.{CORRELATION_CORR_OUTPUT_COLUMN}"),
             )
 
         index_col_names: List[str] = []
@@ -1753,7 +1747,6 @@ class DataFrame(Frame, Generic[T]):
 
         sdf = combined._internal.spark_frame
         index_col_name = verify_temp_column_name(sdf, "__corrwith_index_temp_column__")
-        tuple_col_name = verify_temp_column_name(sdf, "__corrwith_tuple_temp_column__")
 
         this_numeric_column_labels: List[Label] = []
         for column_label in this._internal.column_labels:
@@ -1803,15 +1796,7 @@ class DataFrame(Frame, Generic[T]):
                 )
 
         if len(pair_scols) > 0:
-            sdf = sdf.select(F.explode(F.array(*pair_scols)).alias(tuple_col_name)).select(
-                F.col(f"{tuple_col_name}.{index_col_name}").alias(index_col_name),
-                F.col(f"{tuple_col_name}.{CORRELATION_VALUE_1_COLUMN}").alias(
-                    CORRELATION_VALUE_1_COLUMN
-                ),
-                F.col(f"{tuple_col_name}.{CORRELATION_VALUE_2_COLUMN}").alias(
-                    CORRELATION_VALUE_2_COLUMN
-                ),
-            )
+            sdf = sdf.select(F.inline(F.array(*pair_scols)))
 
             sdf = compute(sdf=sdf, groupKeys=[index_col_name], method=method).select(
                 index_col_name, CORRELATION_CORR_OUTPUT_COLUMN
@@ -1850,7 +1835,7 @@ class DataFrame(Frame, Generic[T]):
         sser.name = None
         return sser
 
-    def iteritems(self) -> Iterator[Tuple[Name, "Series"]]:
+    def items(self) -> Iterator[Tuple[Name, "Series"]]:
         """
         Iterator over (column name, Series) pairs.
 
@@ -2054,9 +2039,16 @@ class DataFrame(Frame, Generic[T]):
             ):
                 yield tuple(([k] if index else []) + list(v))
 
-    def items(self) -> Iterator[Tuple[Name, "Series"]]:
-        """This is an alias of ``iteritems``."""
-        return self.iteritems()
+    def iteritems(self) -> Iterator[Tuple[Name, "Series"]]:
+        """
+        This is an alias of ``items``.
+
+        .. deprecated:: 3.4.0
+            iteritems is deprecated and will be removed in a future version.
+            Use .items instead.
+        """
+        warnings.warn("Deprecated in 3.4.0, Use DataFrame.items instead.", FutureWarning)
+        return self.items()
 
     def to_clipboard(self, excel: bool = True, sep: Optional[str] = None, **kwargs: Any) -> None:
         """
@@ -5230,6 +5222,12 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         ...     '%s/to_parquet/foo.parquet' % path,
         ...     mode = 'overwrite',
         ...     partition_cols=['date', 'country'])
+
+        Notes
+        -----
+        pandas API on Spark writes Parquet files into the directory, `path`, and writes
+        multiple part files in the directory unlike pandas.
+        pandas API on Spark respects HDFS's property such as 'fs.default.name'.
         """
         if index_col is None:
             log_advice(
@@ -5256,11 +5254,11 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         **options: "OptionalPrimitiveType",
     ) -> None:
         """
-        Write the DataFrame out as a ORC file or directory.
+        Write a DataFrame to the ORC format.
 
         Parameters
         ----------
-        path : str, required
+        path : str
             Path to write to.
         mode : str
             Python write mode, default 'w'.
@@ -5307,6 +5305,12 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         ...     '%s/to_orc/foo.orc' % path,
         ...     mode = 'overwrite',
         ...     partition_cols=['date', 'country'])
+
+        Notes
+        -----
+        pandas API on Spark writes ORC files into the directory, `path`, and writes
+        multiple part files in the directory unlike pandas.
+        pandas API on Spark respects HDFS's property such as 'fs.default.name'.
         """
         if index_col is None:
             log_advice(
@@ -9002,7 +9006,7 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
             Minimum number of observations required per pair of columns
             to have a valid result.
         ddof : int, default 1
-            Delta degrees of freedom.  The divisor used in calculations
+            Delta degrees of freedom. The divisor used in calculations
             is ``N - ddof``, where ``N`` represents the number of elements.
 
             .. versionadded:: 3.4.0
@@ -12844,8 +12848,8 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         sdf = self._internal.spark_frame.select(mode_scols)
         sdf = sdf.select(*[F.array_sort(F.col(name)).alias(name) for name in mode_col_names])
 
-        tmp_zip_col = "__tmp_zip_col__"
-        tmp_explode_col = "__tmp_explode_col__"
+        zip_col_name = verify_temp_column_name(sdf, "__mode_zip_tmp_col__")
+        explode_col_name = verify_temp_column_name(sdf, "__mode_explode_tmp_col__")
 
         # After this transformation, sdf turns out to be:
         # +-------+----+-----+
@@ -12855,11 +12859,11 @@ defaultdict(<class 'list'>, {'col..., 'col...})]
         # |   null|null|  2.0|
         # +-------+----+-----+
         sdf = (
-            sdf.select(F.arrays_zip(*[F.col(name) for name in mode_col_names]).alias(tmp_zip_col))
-            .select(F.explode(F.col(tmp_zip_col)).alias(tmp_explode_col))
+            sdf.select(F.arrays_zip(*[F.col(name) for name in mode_col_names]).alias(zip_col_name))
+            .select(F.explode(F.col(zip_col_name)).alias(explode_col_name))
             .select(
                 *[
-                    F.col("{0}.{1}".format(tmp_explode_col, name)).alias(name)
+                    F.col("{0}.{1}".format(explode_col_name, name)).alias(name)
                     for name in mode_col_names
                 ]
             )

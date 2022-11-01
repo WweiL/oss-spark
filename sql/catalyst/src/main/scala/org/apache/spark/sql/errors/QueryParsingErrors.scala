@@ -31,49 +31,42 @@ import org.apache.spark.sql.types.StringType
 private[sql] object QueryParsingErrors extends QueryErrorsBase {
 
   def invalidInsertIntoError(ctx: InsertIntoContext): Throwable = {
-    new ParseException("Invalid InsertIntoContext", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0001", ctx)
   }
 
   def insertOverwriteDirectoryUnsupportedError(ctx: InsertIntoContext): Throwable = {
-    new ParseException("INSERT OVERWRITE DIRECTORY is not supported", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0002", ctx)
   }
 
   def columnAliasInOperationNotAllowedError(op: String, ctx: TableAliasContext): Throwable = {
-    new ParseException(s"Columns aliases are not allowed in $op.", ctx.identifierList())
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0003",
+      messageParameters = Map("op" -> op),
+      ctx.identifierList())
   }
 
   def emptySourceForMergeError(ctx: MergeIntoTableContext): Throwable = {
-    new ParseException("Empty source for merge: you should specify a source" +
-      " table/subquery in merge.", ctx.source)
-  }
-
-  def unrecognizedMatchedActionError(ctx: MatchedClauseContext): Throwable = {
-    new ParseException(s"Unrecognized matched action: ${ctx.matchedAction().getText}",
-      ctx.matchedAction())
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0004", ctx.source)
   }
 
   def insertedValueNumberNotMatchFieldNumberError(ctx: NotMatchedClauseContext): Throwable = {
-    new ParseException("The number of inserted values cannot match the fields.",
-      ctx.notMatchedAction())
-  }
-
-  def unrecognizedNotMatchedActionError(ctx: NotMatchedClauseContext): Throwable = {
-    new ParseException(s"Unrecognized not matched action: ${ctx.notMatchedAction().getText}",
-      ctx.notMatchedAction())
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0006", ctx.notMatchedAction())
   }
 
   def mergeStatementWithoutWhenClauseError(ctx: MergeIntoTableContext): Throwable = {
-    new ParseException("There must be at least one WHEN clause in a MERGE statement", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0008", ctx)
   }
 
   def nonLastMatchedClauseOmitConditionError(ctx: MergeIntoTableContext): Throwable = {
-    new ParseException("When there are more than one MATCHED clauses in a MERGE " +
-      "statement, only the last MATCHED clause can omit the condition.", ctx)
+    new ParseException(errorClass = "NON_LAST_MATCHED_CLAUSE_OMIT_CONDITION", ctx)
   }
 
   def nonLastNotMatchedClauseOmitConditionError(ctx: MergeIntoTableContext): Throwable = {
-    new ParseException("When there are more than one NOT MATCHED clauses in a MERGE " +
-      "statement, only the last NOT MATCHED clause can omit the condition.", ctx)
+    new ParseException(errorClass = "NON_LAST_NOT_MATCHED_BY_TARGET_CLAUSE_OMIT_CONDITION", ctx)
+  }
+
+  def nonLastNotMatchedBySourceClauseOmitConditionError(ctx: MergeIntoTableContext): Throwable = {
+    new ParseException(errorClass = "NON_LAST_NOT_MATCHED_BY_SOURCE_CLAUSE_OMIT_CONDITION", ctx)
   }
 
   def emptyPartitionKeyError(key: String, ctx: PartitionSpecContext): Throwable = {
@@ -85,54 +78,56 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def combinationQueryResultClausesUnsupportedError(ctx: QueryOrganizationContext): Throwable = {
-    new ParseException(
-      "Combination of ORDER BY/SORT BY/DISTRIBUTE BY/CLUSTER BY is not supported", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0011", ctx)
   }
 
   def distributeByUnsupportedError(ctx: QueryOrganizationContext): Throwable = {
-    new ParseException("DISTRIBUTE BY is not supported", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0012", ctx)
   }
 
   def transformNotSupportQuantifierError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "TRANSFORM_DISTINCT_ALL",
+      errorClass = "UNSUPPORTED_FEATURE.TRANSFORM_DISTINCT_ALL",
       messageParameters = Map.empty,
       ctx)
   }
 
   def transformWithSerdeUnsupportedError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "TRANSFORM_NON_HIVE",
+      errorClass = "UNSUPPORTED_FEATURE.TRANSFORM_NON_HIVE",
       messageParameters = Map.empty,
       ctx)
   }
 
+  def unpivotWithPivotInFromClauseNotAllowedError(ctx: FromClauseContext): Throwable = {
+    new ParseException("UNPIVOT cannot be used together with PIVOT in FROM clause", ctx)
+  }
+
   def lateralWithPivotInFromClauseNotAllowedError(ctx: FromClauseContext): Throwable = {
-    new ParseException("LATERAL cannot be used together with PIVOT in FROM clause", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0013", ctx)
+  }
+
+  def lateralWithUnpivotInFromClauseNotAllowedError(ctx: FromClauseContext): Throwable = {
+    new ParseException("LATERAL cannot be used together with UNPIVOT in FROM clause", ctx)
   }
 
   def lateralJoinWithNaturalJoinUnsupportedError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "LATERAL_NATURAL_JOIN",
+      errorClass = "UNSUPPORTED_FEATURE.LATERAL_NATURAL_JOIN",
       messageParameters = Map.empty,
       ctx)
   }
 
   def lateralJoinWithUsingJoinUnsupportedError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "LATERAL_JOIN_USING",
+      errorClass = "UNSUPPORTED_FEATURE.LATERAL_JOIN_USING",
       messageParameters = Map.empty,
       ctx)
   }
 
   def unsupportedLateralJoinTypeError(ctx: ParserRuleContext, joinType: String): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "LATERAL_JOIN_OF_TYPE",
+      errorClass = "UNSUPPORTED_FEATURE.LATERAL_JOIN_OF_TYPE",
       messageParameters = Map("joinType" -> toSQLStmt(joinType)),
       ctx)
   }
@@ -171,32 +166,38 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
 
   def naturalCrossJoinUnsupportedError(ctx: RelationContext): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "NATURAL_CROSS_JOIN",
+      errorClass = "UNSUPPORTED_FEATURE.NATURAL_CROSS_JOIN",
       messageParameters = Map.empty,
       ctx = ctx)
   }
 
   def emptyInputForTableSampleError(ctx: ParserRuleContext): Throwable = {
-    new ParseException("TABLESAMPLE does not accept empty inputs.", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0014", ctx)
   }
 
   def tableSampleByBytesUnsupportedError(msg: String, ctx: SampleMethodContext): Throwable = {
-    new ParseException(s"TABLESAMPLE($msg) is not supported", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0015",
+      messageParameters = Map("msg" -> msg),
+      ctx)
   }
 
   def invalidByteLengthLiteralError(bytesStr: String, ctx: SampleByBytesContext): Throwable = {
-    new ParseException(s"$bytesStr is not a valid byte length literal, " +
-        "expected syntax: DIGIT+ ('B' | 'K' | 'M' | 'G')", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0016",
+      messageParameters = Map("bytesStr" -> bytesStr),
+      ctx)
   }
 
   def invalidEscapeStringError(ctx: PredicateContext): Throwable = {
-    new ParseException("Invalid escape string. Escape string must contain only one character.", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0017", ctx)
   }
 
   def trimOptionUnsupportedError(trimOption: Int, ctx: TrimContext): Throwable = {
-    new ParseException("Function trim doesn't support with " +
-      s"type $trimOption. Please use BOTH, LEADING or TRAILING as trim type", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0018",
+      messageParameters = Map("trimOption" -> trimOption.toString),
+      ctx)
   }
 
   def functionNameUnsupportedError(functionName: String, ctx: ParserRuleContext): Throwable = {
@@ -209,58 +210,91 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
 
   def cannotParseValueTypeError(
       valueType: String, value: String, ctx: TypeConstructorContext): Throwable = {
-    new ParseException(s"Cannot parse the $valueType value: $value", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0019",
+      messageParameters = Map("valueType" -> valueType, "value" -> value),
+      ctx)
   }
 
   def cannotParseIntervalValueError(value: String, ctx: TypeConstructorContext): Throwable = {
-    new ParseException(s"Cannot parse the INTERVAL value: $value", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0020",
+      messageParameters = Map("value" -> value),
+      ctx)
   }
 
   def literalValueTypeUnsupportedError(
-      valueType: String, ctx: TypeConstructorContext): Throwable = {
-    new ParseException(s"Literals of type '$valueType' are currently not supported.", ctx)
+      unsupportedType: String,
+      supportedTypes: Seq[String],
+      ctx: TypeConstructorContext): Throwable = {
+    new ParseException(
+      errorClass = "UNSUPPORTED_TYPED_LITERAL",
+      messageParameters = Map(
+        "unsupportedType" -> toSQLType(unsupportedType),
+        "supportedTypes" -> supportedTypes.map(toSQLType).mkString(", ")),
+      ctx)
   }
 
   def parsingValueTypeError(
       e: IllegalArgumentException, valueType: String, ctx: TypeConstructorContext): Throwable = {
     val message = Option(e.getMessage).getOrElse(s"Exception parsing $valueType")
-    new ParseException(message, ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0022",
+      messageParameters = Map("msg" -> message),
+      ctx)
   }
 
   def invalidNumericLiteralRangeError(rawStrippedQualifier: String, minValue: BigDecimal,
       maxValue: BigDecimal, typeName: String, ctx: NumberContext): Throwable = {
-    new ParseException(s"Numeric literal $rawStrippedQualifier does not " +
-      s"fit in range [$minValue, $maxValue] for type $typeName", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0023",
+      messageParameters = Map(
+        "rawStrippedQualifier" -> rawStrippedQualifier,
+        "minValue" -> minValue.toString(),
+        "maxValue" -> maxValue.toString(),
+        "typeName" -> typeName),
+      ctx)
   }
 
   def moreThanOneFromToUnitInIntervalLiteralError(ctx: ParserRuleContext): Throwable = {
-    new ParseException("Can only have a single from-to unit in the interval literal syntax", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0024", ctx)
   }
 
   def invalidIntervalLiteralError(ctx: IntervalContext): Throwable = {
-    new ParseException("at least one time unit should be given for interval literal", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0025", ctx)
   }
 
   def invalidIntervalFormError(value: String, ctx: MultiUnitsIntervalContext): Throwable = {
-    new ParseException("Can only use numbers in the interval value part for" +
-      s" multiple unit value pairs interval form, but got invalid value: $value", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0026",
+      messageParameters = Map("value" -> value),
+      ctx)
   }
 
   def invalidFromToUnitValueError(ctx: IntervalValueContext): Throwable = {
-    new ParseException("The value of from-to unit must be a string", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0027", ctx)
   }
 
   def fromToIntervalUnsupportedError(
       from: String, to: String, ctx: ParserRuleContext): Throwable = {
-    new ParseException(s"Intervals FROM $from TO $to are not supported.", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0028",
+      messageParameters = Map("from" -> from, "to" -> to),
+      ctx)
   }
 
   def mixedIntervalUnitsError(literal: String, ctx: ParserRuleContext): Throwable = {
-    new ParseException(s"Cannot mix year-month and day-time fields: $literal", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0029",
+      messageParameters = Map("literal" -> literal),
+      ctx)
   }
 
   def dataTypeUnsupportedError(dataType: String, ctx: PrimitiveDataTypeContext): Throwable = {
-    new ParseException(s"DataType $dataType is not supported.", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0030",
+      messageParameters = Map("dataType" -> dataType),
+      ctx)
   }
 
   def charTypeMissingLengthError(dataType: String, ctx: PrimitiveDataTypeContext): Throwable = {
@@ -289,22 +323,23 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def invalidBucketsNumberError(describe: String, ctx: ApplyTransformContext): Throwable = {
-    new ParseException(s"Invalid number of buckets: $describe", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0031",
+      messageParameters = Map("describe" -> describe),
+      ctx)
   }
 
   def cannotCleanReservedNamespacePropertyError(
       property: String, ctx: ParserRuleContext, msg: String): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "SET_NAMESPACE_PROPERTY",
+      errorClass = "UNSUPPORTED_FEATURE.SET_NAMESPACE_PROPERTY",
       messageParameters = Map("property" -> property, "msg" -> msg),
       ctx)
   }
 
   def propertiesAndDbPropertiesBothSpecifiedError(ctx: CreateNamespaceContext): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "SET_PROPERTIES_AND_DBPROPERTIES",
+      errorClass = "UNSUPPORTED_FEATURE.SET_PROPERTIES_AND_DBPROPERTIES",
       messageParameters = Map.empty,
       ctx
     )
@@ -313,42 +348,47 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def cannotCleanReservedTablePropertyError(
       property: String, ctx: ParserRuleContext, msg: String): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "SET_TABLE_PROPERTY",
+      errorClass = "UNSUPPORTED_FEATURE.SET_TABLE_PROPERTY",
       messageParameters = Map("property" -> property, "msg" -> msg),
       ctx)
   }
 
   def duplicatedTablePathsFoundError(
       pathOne: String, pathTwo: String, ctx: ParserRuleContext): Throwable = {
-    new ParseException(s"Duplicated table paths found: '$pathOne' and '$pathTwo'. LOCATION" +
-      s" and the case insensitive key 'path' in OPTIONS are all used to indicate the custom" +
-      s" table path, you can only specify one of them.", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0032",
+      messageParameters = Map(
+        "pathOne" -> pathOne,
+        "pathTwo" -> pathTwo),
+      ctx)
   }
 
   def storedAsAndStoredByBothSpecifiedError(ctx: CreateFileFormatContext): Throwable = {
-    new ParseException("Expected either STORED AS or STORED BY, not both", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0033", ctx)
   }
 
   def operationInHiveStyleCommandUnsupportedError(operation: String,
       command: String, ctx: StatementContext, msgOpt: Option[String] = None): Throwable = {
-    val basicError = s"$operation is not supported in Hive-style $command"
-    val msg = if (msgOpt.isDefined) {
-      s"$basicError, ${msgOpt.get}."
-    } else {
-      basicError
-    }
-    new ParseException(msg, ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0034",
+      messageParameters = Map(
+        "operation" -> operation,
+        "command" -> command,
+        "msg" -> msgOpt.map(m => s", $m").getOrElse("")
+      ),
+      ctx)
   }
 
   def operationNotAllowedError(message: String, ctx: ParserRuleContext): Throwable = {
-    new ParseException(s"Operation not allowed: $message", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0035",
+      messageParameters = Map("message" -> message),
+      ctx)
   }
 
   def descColumnForPartitionUnsupportedError(ctx: DescribeRelationContext): Throwable = {
     new ParseException(
-      errorClass = "UNSUPPORTED_FEATURE",
-      errorSubClass = "DESC_TABLE_COLUMN_PARTITION",
+      errorClass = "UNSUPPORTED_FEATURE.DESC_TABLE_COLUMN_PARTITION",
       messageParameters = Map.empty,
       ctx)
   }
@@ -363,13 +403,18 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def computeStatisticsNotExpectedError(ctx: IdentifierContext): Throwable = {
-    new ParseException(s"Expected `NOSCAN` instead of `${ctx.getText}`", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0036",
+      messageParameters = Map("ctx" -> ctx.getText),
+      ctx)
   }
 
   def addCatalogInCacheTableAsSelectNotAllowedError(
       quoted: String, ctx: CacheTableContext): Throwable = {
-    new ParseException(s"It is not allowed to add catalog/namespace prefix $quoted to " +
-      "the table name in CACHE TABLE AS SELECT", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0037",
+      messageParameters = Map("quoted" -> quoted),
+      ctx)
   }
 
   def showFunctionsUnsupportedError(identifier: String, ctx: IdentifierContext): Throwable = {
@@ -392,20 +437,29 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def duplicateCteDefinitionNamesError(duplicateNames: String, ctx: CtesContext): Throwable = {
-    new ParseException(s"CTE definition can't have duplicate names: $duplicateNames.", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0038",
+      messageParameters = Map("duplicateNames" -> duplicateNames),
+      ctx)
   }
 
   def sqlStatementUnsupportedError(sqlText: String, position: Origin): Throwable = {
-    new ParseException(Option(sqlText), "Unsupported SQL statement", position, position)
+    new ParseException(Option(sqlText), "Unsupported SQL statement", position, position,
+      Some("_LEGACY_ERROR_TEMP_0039"))
   }
 
   def unquotedIdentifierError(ident: String, ctx: ErrorIdentContext): Throwable = {
-    new ParseException(s"Possibly unquoted identifier $ident detected. " +
-      s"Please consider quoting it with back-quotes as `$ident`", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0040",
+      messageParameters = Map("ident" -> ident),
+      ctx)
   }
 
   def duplicateClausesError(clauseName: String, ctx: ParserRuleContext): Throwable = {
-    new ParseException(s"Found duplicate clauses: $clauseName", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0041",
+      messageParameters = Map("clauseName" -> clauseName),
+      ctx)
   }
 
   def duplicateKeysError(key: String, ctx: ParserRuleContext): Throwable = {
@@ -417,10 +471,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def unexpectedFormatForSetConfigurationError(ctx: ParserRuleContext): Throwable = {
-    new ParseException(
-      "Expected format is 'SET', 'SET key', or 'SET key=value'. If you want to include " +
-      "special characters in key, or include semicolon in value, please use quotes, " +
-      "e.g., SET `key`=`value`.", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0042", ctx)
   }
 
   def invalidPropertyKeyForSetQuotedConfigurationError(
@@ -444,59 +495,59 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def unexpectedFormatForResetConfigurationError(ctx: ResetConfigurationContext): Throwable = {
-    new ParseException(
-      "Expected format is 'RESET' or 'RESET key'. If you want to include special characters " +
-      "in key, please use quotes, e.g., RESET `key`.", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0043", ctx)
   }
 
   def intervalValueOutOfRangeError(ctx: IntervalContext): Throwable = {
-    new ParseException("The interval value must be in the range of [-18, +18] hours" +
-      " with second precision", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0044", ctx)
   }
 
   def invalidTimeZoneDisplacementValueError(ctx: SetTimeZoneContext): Throwable = {
-    new ParseException("Invalid time zone displacement value", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0045", ctx)
   }
 
   def createTempTableNotSpecifyProviderError(ctx: CreateTableContext): Throwable = {
-    new ParseException("CREATE TEMPORARY TABLE without a provider is not allowed.", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0046", ctx)
   }
 
   def rowFormatNotUsedWithStoredAsError(ctx: CreateTableLikeContext): Throwable = {
-    new ParseException("'ROW FORMAT' must be used with 'STORED AS'", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0047", ctx)
   }
 
   def useDefinedRecordReaderOrWriterClassesError(ctx: ParserRuleContext): Throwable = {
-    new ParseException(
-      "Unsupported operation: Used defined record reader/writer classes.", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0048", ctx)
   }
 
   def directoryPathAndOptionsPathBothSpecifiedError(ctx: InsertOverwriteDirContext): Throwable = {
-    new ParseException(
-      "Directory path and 'path' in OPTIONS should be specified one, but not both", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0049", ctx)
   }
 
   def unsupportedLocalFileSchemeError(ctx: InsertOverwriteDirContext): Throwable = {
-    new ParseException("LOCAL is supported only with file: scheme", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0050", ctx)
   }
 
   def invalidGroupingSetError(element: String, ctx: GroupingAnalyticsContext): Throwable = {
-    new ParseException(s"Empty set in $element grouping sets is not supported.", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0051",
+      messageParameters = Map("element" -> element),
+      ctx)
   }
 
   def createViewWithBothIfNotExistsAndReplaceError(ctx: CreateViewContext): Throwable = {
-    new ParseException("CREATE VIEW with both IF NOT EXISTS and REPLACE is not allowed.", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0052", ctx)
   }
 
   def defineTempViewWithIfNotExistsError(ctx: CreateViewContext): Throwable = {
-    new ParseException("It is not allowed to define a TEMPORARY view with IF NOT EXISTS.", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0053", ctx)
   }
 
   def notAllowedToAddDBPrefixForTempViewError(
       database: String,
       ctx: CreateViewContext): Throwable = {
     new ParseException(
-      s"It is not allowed to add database prefix `$database` for the TEMPORARY view name.", ctx)
+      errorClass = "_LEGACY_ERROR_TEMP_0054",
+      messageParameters = Map("database" -> database),
+      ctx)
   }
 
   def createFuncWithBothIfNotExistsAndReplaceError(ctx: CreateFunctionContext): Throwable = {
@@ -551,11 +602,15 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def unclosedBracketedCommentError(command: String, position: Origin): Throwable = {
-    new ParseException(Some(command), "Unclosed bracketed comment", position, position)
+    new ParseException(Some(command), "Unclosed bracketed comment", position, position,
+      Some("_LEGACY_ERROR_TEMP_0055"))
   }
 
   def invalidTimeTravelSpec(reason: String, ctx: ParserRuleContext): Throwable = {
-    new ParseException(s"Invalid time travel spec: $reason.", ctx)
+    new ParseException(
+      errorClass = "_LEGACY_ERROR_TEMP_0056",
+      messageParameters = Map("reason" -> reason),
+      ctx)
   }
 
   def invalidNameForDropTempFunc(name: Seq[String], ctx: ParserRuleContext): Throwable = {
@@ -569,15 +624,26 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def defaultColumnNotImplementedYetError(ctx: ParserRuleContext): Throwable = {
-    new ParseException("Support for DEFAULT column values is not implemented yet", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0057", ctx)
   }
 
   def defaultColumnNotEnabledError(ctx: ParserRuleContext): Throwable = {
-    new ParseException("Support for DEFAULT column values is not allowed", ctx)
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0058", ctx)
   }
 
   def defaultColumnReferencesNotAllowedInPartitionSpec(ctx: ParserRuleContext): Throwable = {
+    new ParseException(errorClass = "_LEGACY_ERROR_TEMP_0059", ctx)
+  }
+
+  def duplicateCreateTableColumnOption(
+      ctx: ParserRuleContext,
+      columnName: String,
+      optionName: String): Throwable = {
     new ParseException(
-      "References to DEFAULT column values are not allowed within the PARTITION clause", ctx)
+      errorClass = "CREATE_TABLE_COLUMN_OPTION_DUPLICATE",
+      messageParameters = Map(
+        "columnName" -> columnName,
+        "optionName" -> optionName),
+      ctx)
   }
 }

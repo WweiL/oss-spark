@@ -155,6 +155,18 @@ private[sql] object PythonSQLUtils extends Logging {
     Column(TimestampDiff(unit, start.expr, end.expr))
   }
 
+  def pandasProduct(e: Column, ignoreNA: Boolean): Column = {
+    Column(PandasProduct(e.expr, ignoreNA).toAggregateExpression(false))
+  }
+
+  def pandasStddev(e: Column, ddof: Int): Column = {
+    Column(PandasStddev(e.expr, ddof).toAggregateExpression(false))
+  }
+
+  def pandasVariance(e: Column, ddof: Int): Column = {
+    Column(PandasVariance(e.expr, ddof).toAggregateExpression(false))
+  }
+
   def pandasSkewness(e: Column): Column = {
     Column(PandasSkewness(e.expr).toAggregateExpression(false))
   }
