@@ -79,17 +79,11 @@ object UnsupportedOperationChecker extends Logging {
   def checkStreamingQueryGlobalWatermarkLimit(
       plan: LogicalPlan): Unit = {
     def isStatefulOperationPossiblyEmitLateRows(p: LogicalPlan): Boolean = p match {
-      case s: Aggregate
-        if s.isStreaming => true
       case Join(left, right, joinType, _, _)
         if left.isStreaming && right.isStreaming && joinType != Inner => true
       case f: FlatMapGroupsWithState
-        if f.isStreaming && f.outputMode == OutputMode.Append() =>
-          println("flatmapgroupswithstate & append")
-          true
-      case g =>
-        println("nope")
-        println(g.getClass)
+        if f.isStreaming && f.outputMode == OutputMode.Append() => true
+      case _ =>
         false
     }
 
