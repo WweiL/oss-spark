@@ -19,8 +19,9 @@ package org.apache.spark.sql.catalyst.analysis
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, CurrentDate, CurrentTimestampLike, GroupingSets, LocalTimestamp, MonotonicallyIncreasingID, SessionWindow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryComparison, CurrentDate, CurrentTimestampLike, Expression, GreaterThan, GreaterThanOrEqual, GroupingSets, LessThan, LessThanOrEqual, LocalTimestamp, MonotonicallyIncreasingID, SessionWindow}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.streaming.InternalOutputModes
@@ -41,6 +42,34 @@ object UnsupportedOperationChecker extends Logging {
     }
   }
 
+  def hasRangeExpr(e: Expression): Boolean = e.exists {
+    case neq @ (_: LessThanOrEqual | _: LessThan | _: GreaterThanOrEqual | _: GreaterThan) =>
+      hasEventTimeColNeq(neq)
+    case _ => false
+  }
+
+  def hasEventTimeColNeq(neq: Expression): Boolean = {
+    val exp = neq.asInstanceOf[BinaryComparison]
+    hasEventTimeCol(exp.left) || hasEventTimeCol(exp.right)
+  }
+
+  def hasEventTimeCol(exps: Expression): Boolean =
+    exps.exists {
+      case a: AttributeReference => a.metadata.contains(EventTimeWatermark.delayKey)
+      case _ => false
+    }
+
+  // TODO: This function and hasRangeExpr
+  // should be deleted after we support range join with states
+  def isStreamStreamIntervalJoin(plan: LogicalPlan): Boolean = {
+    plan match {
+      case ExtractEquiJoinKeys(_, _, _, otherCondition, _, left, right, _) =>
+        left.isStreaming && right.isStreaming
+        otherCondition.isDefined && hasRangeExpr(otherCondition.get)
+      case _ => false
+    }
+  }
+
   /**
    * Checks for possible correctness issue in chained stateful operators. The behavior is
    * controlled by SQL config `spark.sql.streaming.statefulOperator.checkCorrectness.enabled`.
@@ -48,16 +77,20 @@ object UnsupportedOperationChecker extends Logging {
    * print a warning message.
    */
   def checkStreamingQueryGlobalWatermarkLimit(
-      plan: LogicalPlan,
-      outputMode: OutputMode): Unit = {
+      plan: LogicalPlan): Unit = {
     def isStatefulOperationPossiblyEmitLateRows(p: LogicalPlan): Boolean = p match {
       case s: Aggregate
-        if s.isStreaming && outputMode == InternalOutputModes.Append => true
+        if s.isStreaming => true
       case Join(left, right, joinType, _, _)
         if left.isStreaming && right.isStreaming && joinType != Inner => true
       case f: FlatMapGroupsWithState
-        if f.isStreaming && f.outputMode == OutputMode.Append() => true
-      case _ => false
+        if f.isStreaming && f.outputMode == OutputMode.Append() =>
+          println("flatmapgroupswithstate & append")
+          true
+      case g =>
+        println("nope")
+        println(g.getClass)
+        false
     }
 
     def isStatefulOperation(p: LogicalPlan): Boolean = p match {
@@ -86,6 +119,15 @@ object UnsupportedOperationChecker extends Logging {
               "the possible risk of correctness issue and still need to run the query, " +
               "you can disable this check by setting the config " +
               "`spark.sql.streaming.statefulOperator.checkCorrectness.enabled` to false."
+            throwError(errorMsg)(plan)
+          }
+          // TODO: This check should be deleted after
+          // we support stream-stream join followed by aggregation
+          subPlan.find { p =>
+            (p ne subPlan) && isStreamStreamIntervalJoin(p)
+          }.foreach { _ =>
+            val errorMsg = "stream-stream interval join " +
+              "followed by any stateful operator is not supported yet"
             throwError(errorMsg)(plan)
           }
         }
@@ -157,10 +199,11 @@ object UnsupportedOperationChecker extends Logging {
     // Disallow multiple streaming aggregations
     val aggregates = collectStreamingAggregates(plan)
 
-    if (aggregates.size > 1) {
+    if (aggregates.size > 1 && outputMode != InternalOutputModes.Append) {
       throwError(
         "Multiple streaming aggregations are not supported with " +
-          "streaming DataFrames/Datasets")(plan)
+          "streaming DataFrames/Datasets for Update and Complete mode. " +
+          "Only Append mode is supported")(plan)
     }
 
     // Disallow some output mode
@@ -373,10 +416,6 @@ object UnsupportedOperationChecker extends Logging {
             }
           }
 
-        case d: Deduplicate if collectStreamingAggregates(d).nonEmpty =>
-          throwError("dropDuplicates is not supported after aggregation on a " +
-            "streaming DataFrame/Dataset")
-
         case j @ Join(left, right, joinType, condition, _) =>
           if (left.isStreaming && right.isStreaming && outputMode != InternalOutputModes.Append) {
             throwError("Join between two streaming DataFrames/Datasets is not supported" +
@@ -471,7 +510,7 @@ object UnsupportedOperationChecker extends Logging {
       checkUnsupportedExpressions(subPlan)
     }
 
-    checkStreamingQueryGlobalWatermarkLimit(plan, outputMode)
+    checkStreamingQueryGlobalWatermarkLimit(plan)
   }
 
   def checkForContinuous(plan: LogicalPlan, outputMode: OutputMode): Unit = {
