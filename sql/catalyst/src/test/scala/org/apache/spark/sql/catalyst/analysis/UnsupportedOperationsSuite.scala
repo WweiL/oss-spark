@@ -652,6 +652,13 @@ class UnsupportedOperationsSuite extends SparkFunSuite with SQLHelper {
     assertPassOnGlobalWatermarkLimit(
       "deduplicate after streaming aggregation in Append mode",
       Deduplicate(Seq(attribute), streamRelation.groupBy("a")(count("*"))))
+
+    assertPassOnGlobalWatermarkLimit(
+      "FlatMapGroupsWithState after streaming aggregation in Append mode",
+      TestFlatMapGroupsWithState(
+        null, att, att, Seq(att), Seq(att), att, null, Append,
+        isMapGroupsWithState = false, null,
+        streamRelation.groupBy("a")(count("*"))))
   }
 
   // FlatMapGroupsWithState
