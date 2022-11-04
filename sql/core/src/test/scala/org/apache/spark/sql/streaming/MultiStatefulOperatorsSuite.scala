@@ -256,13 +256,13 @@ class MultiStatefulOperatorsSuite
 
   test("join -> window agg, append mode") {
     val input1 = MemoryStream[Int]
-    val inputDF1 = input1.toDF
+    val inputDF1 = input1.toDF()
       .withColumnRenamed("value", "value1")
       .withColumn("eventTime1", timestamp_seconds($"value1"))
       .withWatermark("eventTime1", "0 seconds")
 
     val input2 = MemoryStream[Int]
-    val inputDF2 = input2.toDF
+    val inputDF2 = input2.toDF()
       .withColumnRenamed("value", "value2")
       .withColumn("eventTime2", timestamp_seconds($"value2"))
       .withWatermark("eventTime2", "0 seconds")
@@ -407,7 +407,7 @@ class MultiStatefulOperatorsSuite
   // we support stream-stream join followed by aggregation
   test("join on time interval -> window agg, append mode, should fail") {
     val input1 = MemoryStream[Int]
-    val inputDF1 = input1.toDF
+    val inputDF1 = input1.toDF()
       .withColumnRenamed("value", "value1")
       .withColumn("eventTime1", timestamp_seconds($"value1"))
       .withWatermark("eventTime1", "0 seconds")
@@ -426,25 +426,19 @@ class MultiStatefulOperatorsSuite
       .agg(count("*") as 'count)
       .select($"window".getField("start").cast("long").as[Long], $"count".as[Long])
 
-    var excpetionThrown: Boolean = false
-    try {
+    val e = intercept[AnalysisException] {
       testStream(stream)(
         StartStream()
       )
-    } catch {
-      case t: AnalysisException =>
-        assert(t.getMessage.contains("stream-stream interval join " +
-          "followed by any stateful operator is not supported yet"))
-        excpetionThrown = true
     }
-    assert(excpetionThrown)
+    assert(e.getMessage.contains("Detected pattern of possible 'correctness' issue"))
   }
 
   // TODO: This test should be modified or deleted after
   // we support stream-stream join followed by aggregation
   test("join with range join on non-time intervals -> window agg, append mode, shouldn't fail") {
     val input1 = MemoryStream[Int]
-    val inputDF1 = input1.toDF
+    val inputDF1 = input1.toDF()
       .withColumnRenamed("value", "value1")
       .withColumn("eventTime1", timestamp_seconds($"value1"))
       .withColumn("v1", timestamp_seconds($"value1"))
@@ -470,34 +464,6 @@ class MultiStatefulOperatorsSuite
       CheckNewAnswer(),
       assertNumStateRows(Seq(1, 0)),
       assertNumRowsDroppedByWatermark(Seq(0, 0))
-    )
-  }
-
-  // TODO: This test should be modified or deleted after
-  // we support stream-stream join followed by aggregation
-  test("join on time interval without window agg, append mode, shouldn't fail") {
-    val input1 = MemoryStream[Int]
-    val inputDF1 = input1.toDF
-      .withColumnRenamed("value", "value1")
-      .withColumn("eventTime1", timestamp_seconds($"value1"))
-      .withWatermark("eventTime1", "0 seconds")
-
-    val input2 = MemoryStream[(Int, Int)]
-    val inputDF2 = input2.toDS().toDF("start", "end")
-      .withColumn("eventTime2Start", timestamp_seconds($"start"))
-      .withColumn("eventTime2End", timestamp_seconds($"end"))
-      .withColumn("start2", timestamp_seconds($"start"))
-      .withWatermark("eventTime2Start", "0 seconds")
-
-    val stream = inputDF1.join(inputDF2,
-      expr("eventTime1 >= eventTime2Start AND eventTime1 < eventTime2End " +
-        "AND eventTime1 = start2"), "inner")
-      .select($"eventTime1".cast("long").as[Long])
-
-    testStream(stream)(
-      AddData(input1, 1, 2, 3, 4),
-      AddData(input2, (1, 2), (2, 3), (3, 4), (4, 5)),
-      CheckNewAnswer(1, 2, 3, 4)
     )
   }
 

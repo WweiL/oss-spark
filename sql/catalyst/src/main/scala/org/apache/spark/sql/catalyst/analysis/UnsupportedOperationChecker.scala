@@ -42,33 +42,22 @@ object UnsupportedOperationChecker extends Logging {
     }
   }
 
-  def hasRangeExpr(e: Expression): Boolean = e.exists {
+  private def hasRangeExprAgainstEventTimeCol(e: Expression): Boolean = e.exists {
     case neq @ (_: LessThanOrEqual | _: LessThan | _: GreaterThanOrEqual | _: GreaterThan) =>
       hasEventTimeColNeq(neq)
     case _ => false
   }
 
-  def hasEventTimeColNeq(neq: Expression): Boolean = {
+  private def hasEventTimeColNeq(neq: Expression): Boolean = {
     val exp = neq.asInstanceOf[BinaryComparison]
     hasEventTimeCol(exp.left) || hasEventTimeCol(exp.right)
   }
 
-  def hasEventTimeCol(exps: Expression): Boolean =
+  private def hasEventTimeCol(exps: Expression): Boolean =
     exps.exists {
       case a: AttributeReference => a.metadata.contains(EventTimeWatermark.delayKey)
       case _ => false
     }
-
-  // TODO: This function and hasRangeExpr
-  // should be deleted after we support range join with states
-  def isStreamStreamIntervalJoin(plan: LogicalPlan): Boolean = {
-    plan match {
-      case ExtractEquiJoinKeys(_, _, _, otherCondition, _, left, right, _) =>
-        left.isStreaming && right.isStreaming
-        otherCondition.isDefined && hasRangeExpr(otherCondition.get)
-      case _ => false
-    }
-  }
 
   /**
    * Checks for possible correctness issue in chained stateful operators. The behavior is
@@ -76,15 +65,14 @@ object UnsupportedOperationChecker extends Logging {
    * Once it is enabled, an analysis exception will be thrown. Otherwise, Spark will just
    * print a warning message.
    */
-  def checkStreamingQueryGlobalWatermarkLimit(
-      plan: LogicalPlan): Unit = {
+  def checkStreamingQueryGlobalWatermarkLimit(plan: LogicalPlan): Unit = {
     def isStatefulOperationPossiblyEmitLateRows(p: LogicalPlan): Boolean = p match {
-      case Join(left, right, joinType, _, _)
-        if left.isStreaming && right.isStreaming && joinType != Inner => true
+      case ExtractEquiJoinKeys(_, _, _, otherCondition, _, left, right, _) =>
+        left.isStreaming && right.isStreaming &&
+          otherCondition.isDefined && hasRangeExprAgainstEventTimeCol(otherCondition.get)
       case f: FlatMapGroupsWithState
         if f.isStreaming && f.outputMode == OutputMode.Append() => true
-      case _ =>
-        false
+      case _ => false
     }
 
     def isStatefulOperation(p: LogicalPlan): Boolean = p match {
@@ -113,15 +101,6 @@ object UnsupportedOperationChecker extends Logging {
               "the possible risk of correctness issue and still need to run the query, " +
               "you can disable this check by setting the config " +
               "`spark.sql.streaming.statefulOperator.checkCorrectness.enabled` to false."
-            throwError(errorMsg)(plan)
-          }
-          // TODO: This check should be deleted after
-          // we support stream-stream join followed by aggregation
-          subPlan.find { p =>
-            (p ne subPlan) && isStreamStreamIntervalJoin(p)
-          }.foreach { _ =>
-            val errorMsg = "stream-stream interval join " +
-              "followed by any stateful operator is not supported yet"
             throwError(errorMsg)(plan)
           }
         }

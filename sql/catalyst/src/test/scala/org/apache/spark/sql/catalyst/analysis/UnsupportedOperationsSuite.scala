@@ -501,46 +501,54 @@ class UnsupportedOperationsSuite extends SparkFunSuite with SQLHelper {
         "the nullable side and an appropriate range condition"))
   }
 
-  // stream-stream inner join doesn't emit late rows, whereas outer joins could
-  Seq((Inner, false), (LeftOuter, true), (RightOuter, true)).foreach {
-    case (joinType, expectFailure) =>
+  // for a stream-stream join followed by a stateful operator,
+  // if the join is keyed on time-interval inequality conditions (inequality on watermarked cols),
+  // should fail.
+  // if the join is keyed on time-interval equality conditions -> should pass
+  Seq(Inner, LeftOuter, RightOuter, FullOuter).foreach {
+    joinType =>
+      assertFailOnGlobalWatermarkLimit(
+        s"streaming aggregation after " +
+          s"stream-stream $joinType join keyed on time inequality in Append mode are not supported",
+        streamRelation.join(streamRelation, joinType = joinType,
+          condition = Some(attributeWithWatermark === attribute &&
+            attributeWithWatermark < attributeWithWatermark + 10))
+          .groupBy("a")(count("*")))
+
       assertPassOnGlobalWatermarkLimit(
         s"single $joinType join in Append mode",
         streamRelation.join(streamRelation, joinType = RightOuter,
           condition = Some(attributeWithWatermark === attribute)))
 
-      testGlobalWatermarkLimit(
-        s"streaming aggregation after stream-stream $joinType join in Append mode",
+      assertPassOnGlobalWatermarkLimit(
+        s"streaming aggregation after " +
+          s"stream-stream $joinType join keyed on time equality in Append mode are supported",
         streamRelation.join(streamRelation, joinType = joinType,
           condition = Some(attributeWithWatermark === attribute))
-          .groupBy("a")(count("*")),
-        expectFailure = expectFailure)
+          .groupBy("a")(count("*")))
 
       Seq(Inner, LeftOuter, RightOuter).foreach { joinType2 =>
-        testGlobalWatermarkLimit(
+        assertPassOnGlobalWatermarkLimit(
           s"streaming-stream $joinType2 after stream-stream $joinType join in Append mode",
           streamRelation.join(
             streamRelation.join(streamRelation, joinType = joinType,
               condition = Some(attributeWithWatermark === attribute)),
             joinType = joinType2,
-            condition = Some(attributeWithWatermark === attribute)),
-          expectFailure = expectFailure)
+            condition = Some(attributeWithWatermark === attribute)))
       }
 
-      testGlobalWatermarkLimit(
+      assertPassOnGlobalWatermarkLimit(
         s"FlatMapGroupsWithState after stream-stream $joinType join in Append mode",
         TestFlatMapGroupsWithState(
           null, att, att, Seq(att), Seq(att), att, null, Append,
           isMapGroupsWithState = false, null,
           streamRelation.join(streamRelation, joinType = joinType,
-            condition = Some(attributeWithWatermark === attribute))),
-        expectFailure = expectFailure)
+            condition = Some(attributeWithWatermark === attribute))))
 
-      testGlobalWatermarkLimit(
+      assertPassOnGlobalWatermarkLimit(
         s"deduplicate after stream-stream $joinType join in Append mode",
         Deduplicate(Seq(attribute), streamRelation.join(streamRelation, joinType = joinType,
-          condition = Some(attributeWithWatermark === attribute))),
-        expectFailure = expectFailure)
+          condition = Some(attributeWithWatermark === attribute))))
   }
 
   // Cogroup: only batch-batch is allowed
