@@ -174,7 +174,7 @@ object UnsupportedOperationChecker extends Logging {
 
     if (aggregates.size > 1 && outputMode != InternalOutputModes.Append) {
       throwError(
-        "Multiple streaming aggregations are not supported with " +
+        "Multiple streaming stateful operators are not supported with " +
           "streaming DataFrames/Datasets for Update and Complete mode. " +
           "Only Append mode is supported")(plan)
     }
