@@ -104,13 +104,13 @@ class UnsupportedOperationsSuite extends SparkFunSuite with SQLHelper {
     "aggregate - multiple streaming aggregations - update",
     Aggregate(Nil, aggExprs("c"), Aggregate(Nil, aggExprs("d"), streamRelation)),
     outputMode = Update,
-    expectedMsgs = Seq("multiple streaming aggregations"))
+    expectedMsgs = Seq("Multiple streaming aggregations"))
 
   assertNotSupportedInStreamingPlan(
     "aggregate - multiple streaming aggregations - complete",
     Aggregate(Nil, aggExprs("c"), Aggregate(Nil, aggExprs("d"), streamRelation)),
     outputMode = Complete,
-    expectedMsgs = Seq("multiple streaming aggregations"))
+    expectedMsgs = Seq("Multiple streaming aggregations"))
 
   assertSupportedInStreamingPlan(
     "aggregate - streaming aggregations in update mode",
