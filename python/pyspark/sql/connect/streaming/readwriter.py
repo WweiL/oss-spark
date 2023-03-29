@@ -169,9 +169,77 @@ class DataStreamReader(OptionUtils):
 
     json.__doc__ = PySparkDataStreamReader.json.__doc__
 
-    # def orc() TODO
-    # def parquet() TODO
-    # def text() TODO
+    # BEGIN_WEI_CHANGE
+    def orc(
+        self,
+        path: str,
+        mergeSchema: Optional[bool] = None,
+        pathGlobFilter: Optional[Union[bool, str]] = None,
+        recursiveFileLookup: Optional[Union[bool, str]] = None,
+    ) -> "DataFrame":
+        self._set_opts(
+            mergeSchema=mergeSchema,
+            pathGlobFilter=pathGlobFilter,
+            recursiveFileLookup=recursiveFileLookup,
+        )
+        if isinstance(path, str):
+            return self.load(path=path, format="orc")
+        else:
+            raise TypeError("path can be only a single string")
+        
+    orc.__doc__ = PySparkDataStreamReader.orc.__doc__
+
+    def parquet(
+        self,
+        path: str,
+        mergeSchema: Optional[bool] = None,
+        pathGlobFilter: Optional[Union[bool, str]] = None,
+        recursiveFileLookup: Optional[Union[bool, str]] = None,
+        datetimeRebaseMode: Optional[Union[bool, str]] = None,
+        int96RebaseMode: Optional[Union[bool, str]] = None,
+    ) -> "DataFrame":
+        self._set_opts(
+            mergeSchema=mergeSchema,
+            pathGlobFilter=pathGlobFilter,
+            recursiveFileLookup=recursiveFileLookup,
+            datetimeRebaseMode=datetimeRebaseMode,
+            int96RebaseMode=int96RebaseMode,
+        )
+        self._set_opts(
+            mergeSchema=mergeSchema,
+            pathGlobFilter=pathGlobFilter,
+            recursiveFileLookup=recursiveFileLookup,
+            datetimeRebaseMode=datetimeRebaseMode,
+            int96RebaseMode=int96RebaseMode,
+        )
+        if isinstance(path, str):
+            return self.load(path=path, format="parquet")
+        else:
+            raise TypeError("path can be only a single string")
+        
+    parquet.__doc__ = PySparkDataStreamReader.parquet.__doc__
+
+    def text(
+        self,
+        path: str,
+        wholetext: bool = False,
+        lineSep: Optional[str] = None,
+        pathGlobFilter: Optional[Union[bool, str]] = None,
+        recursiveFileLookup: Optional[Union[bool, str]] = None,
+    ) -> "DataFrame":
+        self._set_opts(
+            wholetext=wholetext,
+            lineSep=lineSep,
+            pathGlobFilter=pathGlobFilter,
+            recursiveFileLookup=recursiveFileLookup,
+        )
+        if isinstance(path, str):
+            return self.load(path=path, format="text")
+        else:
+            raise TypeError("path can be only a single string")
+        
+    text.__doc__ = PySparkDataStreamReader.text.__doc__
+    # END_WEI_CHANGE
 
     def csv(
         self,
