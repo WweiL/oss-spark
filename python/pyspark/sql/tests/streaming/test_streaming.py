@@ -103,8 +103,14 @@ class StreamingTestsMixin:
                 .schema(bad_schema)
                 .load(path="python/test_support/sql/streaming", schema=schema, format="text")
             )
-        self.assertTrue(df.isStreaming)
-        self.assertEqual(df.schema.simpleString(), "struct<data:string>")
+            # TODO: Moving this outside of with block will trigger the following error,
+            # which doesn't happen in non-connect
+            # pyspark.errors.exceptions.connect.AnalysisException:
+            # There is a 'path' option set and load() is called with a path parameter.
+            # Either remove the path option, or call load() without the parameter.
+            # To ignore this check, set 'spark.sql.legacy.pathOptionBehavior.enabled' to 'true'.
+            self.assertTrue(df.isStreaming)
+            self.assertEqual(df.schema.simpleString(), "struct<data:string>")
 
     def test_stream_save_options(self):
         df = (
