@@ -16,13 +16,9 @@
 #
 
 import os
-import shutil
 import tempfile
 import time
 
-from pyspark.sql import Row
-from pyspark.sql.functions import lit
-from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 from pyspark.testing.sqlutils import ReusedSQLTestCase
 
 class StreamingTestsForeachFamilyMixin:
@@ -354,10 +350,8 @@ class StreamingTestsForeachFamilyMixin:
         q.stop()
         self.assertIsNone(q.exception(), "No exception has to be propagated.")
 
-
 class StreamingTestsForeachFamily(StreamingTestsForeachFamilyMixin, ReusedSQLTestCase):
     pass
-
 
 if __name__ == "__main__":
     import unittest
