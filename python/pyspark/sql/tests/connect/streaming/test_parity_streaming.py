@@ -55,6 +55,7 @@ class StreamingParityTests(StreamingTestsMixin, ReusedConnectTestCase):
     def test_stream_save_options_overwrite(self):
         super().test_stream_save_options_overwrite()
 
+
 if __name__ == "__main__":
     import unittest
     from pyspark.sql.tests.connect.streaming.test_parity_streaming import *  # noqa: F401

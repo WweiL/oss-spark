@@ -176,5 +176,6 @@ def _test() -> None:
     if failure_count:
         sys.exit(-1)
 
+
 if __name__ == "__main__":
     _test()

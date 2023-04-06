@@ -21,6 +21,7 @@ import time
 
 from pyspark.testing.sqlutils import ReusedSQLTestCase
 
+
 class StreamingTestsForeachFamilyMixin:
     class ForeachWriterTester:
         def __init__(self, spark):
@@ -350,8 +351,10 @@ class StreamingTestsForeachFamilyMixin:
         q.stop()
         self.assertIsNone(q.exception(), "No exception has to be propagated.")
 
+
 class StreamingTestsForeachFamily(StreamingTestsForeachFamilyMixin, ReusedSQLTestCase):
     pass
+
 
 if __name__ == "__main__":
     import unittest

@@ -184,7 +184,7 @@ class DataStreamReader(OptionUtils):
             return self.load(path=path, format="orc")
         else:
             raise TypeError("path can be only a single string")
-        
+
     orc.__doc__ = PySparkDataStreamReader.orc.__doc__
 
     def parquet(
@@ -532,7 +532,7 @@ def _test() -> None:
     import pyspark.sql.connect.streaming.readwriter
 
     globs = pyspark.sql.connect.readwriter.__dict__.copy()
-    
+
     globs["spark"] = (
         PySparkSession.builder.appName("sql.connect.streaming.readwriter tests")
         .remote("local[4]")

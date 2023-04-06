@@ -29,7 +29,11 @@ from pyspark.testing.sqlutils import ReusedSQLTestCase
 class StreamingTestsMixin:
     def test_streaming_query_functions_sanity(self):
         df = self.spark.readStream.format("rate").option("rowsPerSecond", 10).load()
-        query = df.writeStream.format("memory").queryName("test_streaming_query_functions_sanity").start()
+        query = (
+            df.writeStream.format("memory")
+            .queryName("test_streaming_query_functions_sanity")
+            .start()
+        )
         try:
             self.assertEquals(query.name, "test_streaming_query_functions_sanity")
             self.assertTrue(isinstance(query.id, str))
@@ -47,8 +51,10 @@ class StreamingTestsMixin:
             query.explain()
 
         except Exception as e:
-            self.fail("Streaming query functions sanity check shouldn't throw any error. "
-                      "Error message: " + str(e))
+            self.fail(
+                "Streaming query functions sanity check shouldn't throw any error. "
+                "Error message: " + str(e)
+            )
 
         finally:
             query.stop()
@@ -327,7 +333,6 @@ class StreamingTestsMixin:
             q.stop()
             shutil.rmtree(tmpPath)
 
-
     def test_streaming_read_from_table(self):
         with self.table("input_table", "this_query"):
             self.spark.sql("CREATE TABLE input_table (value string) USING parquet")
@@ -352,8 +357,10 @@ class StreamingTestsMixin:
             result = self.spark.sql("SELECT value FROM output_table").collect()
             self.assertTrue(len(result) > 0)
 
+
 class StreamingTests(StreamingTestsMixin, ReusedSQLTestCase):
     pass
+
 
 if __name__ == "__main__":
     import unittest

@@ -1361,7 +1361,7 @@ class DataStreamWriter:
         >>> q.name
         'this_query'
         >>> q.stop()
-        
+
         # TODO(SPARK-42940): remove the SKIP flag below
         >>> q.isActive # doctest: +SKIP
         False
