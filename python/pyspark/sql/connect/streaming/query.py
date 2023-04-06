@@ -26,34 +26,36 @@ from pyspark.sql.streaming.query import (
 )
 
 __all__ = [
-    "StreamingQuery",  # TODO(WIP): "StreamingQueryManager"
+    "StreamingQuery",  # TODO(SPARK-43032): "StreamingQueryManager"
 ]
 
 if TYPE_CHECKING:
     from pyspark.sql.connect.session import SparkSession
 
-class StreamingQuery:
 
-    def __init__(self, session: "SparkSession", queryId: str, runId: str, name: Optional[str] = None) -> None:
+class StreamingQuery:
+    def __init__(
+        self, session: "SparkSession", queryId: str, runId: str, name: Optional[str] = None
+    ) -> None:
         self._session = session
-        self._id = queryId
-        self._runId = runId
+        self._query_id = queryId
+        self._run_id = runId
         self._name = name
 
     @property
     def id(self) -> str:
-        return self._id
+        return self._query_id
 
     id.__doc__ = PySparkStreamingQuery.id.__doc__
 
     @property
     def runId(self) -> str:
-        return self._runId
+        return self._run_id
 
     runId.__doc__ = PySparkStreamingQuery.runId.__doc__
 
     @property
-    def name(self) -> str:
+    def name(self) -> Optional[str]:
         return self._name
 
     name.__doc__ = PySparkStreamingQuery.name.__doc__
@@ -75,21 +77,25 @@ class StreamingQuery:
         return {
             "message": proto.status_message,
             "isDataAvailable": proto.is_data_available,
-            "isTriggerActive": proto.is_trigger_active
+            "isTriggerActive": proto.is_trigger_active,
         }
 
     status.__doc__ = PySparkStreamingQuery.status.__doc__
 
     @property
     def recentProgress(self) -> List[Dict[str, Any]]:
-        progress = list(self._fetch_status(recent_progress_limit=-1).recent_progress_json)
+        cmd = pb2.StreamingQueryCommand()
+        cmd.recent_progress = True
+        progress = self._execute_streaming_query_cmd(cmd).recent_progress.recent_progress_json
         return [json.loads(p) for p in progress]
 
     recentProgress.__doc__ = PySparkStreamingQuery.recentProgress.__doc__
 
     @property
     def lastProgress(self) -> Optional[Dict[str, Any]]:
-        progress = list(self._fetch_status(recent_progress_limit=1).recent_progress_json)
+        cmd = pb2.StreamingQueryCommand()
+        cmd.last_progress = True
+        progress = self._execute_streaming_query_cmd(cmd).recent_progress.recent_progress_json
         if len(progress) > 0:
             return json.loads(progress[-1])
         else:
@@ -117,49 +123,51 @@ class StreamingQuery:
         result = self._execute_streaming_query_cmd(cmd).explain.result
         print(result)
 
-    processAllAvailable.__doc__ = PySparkStreamingQuery.processAllAvailable.__doc__
+    explain.__doc__ = PySparkStreamingQuery.explain.__doc__
 
     def exception(self) -> Optional[StreamingQueryException]:
         raise NotImplementedError()
 
-    processAllAvailable.__doc__ = PySparkStreamingQuery.processAllAvailable.__doc__
+    exception.__doc__ = PySparkStreamingQuery.exception.__doc__
 
-    def _fetch_status(self, recent_progress_limit=0) -> pb2.StreamingQueryCommandResult.StatusResult:
+    def _fetch_status(self) -> pb2.StreamingQueryCommandResult.StatusResult:
         cmd = pb2.StreamingQueryCommand()
-        cmd.status.recent_progress_limit = recent_progress_limit
-
+        cmd.status = True
         return self._execute_streaming_query_cmd(cmd).status
 
-    def _execute_streaming_query_cmd(self, cmd: pb2.StreamingQueryCommand) -> pb2.StreamingQueryCommandResult:
-        cmd.id = self._id
+    def _execute_streaming_query_cmd(
+        self, cmd: pb2.StreamingQueryCommand
+    ) -> pb2.StreamingQueryCommandResult:
+        cmd.query_id.id = self._query_id
+        cmd.query_id.run_id = self._run_id
         exec_cmd = pb2.Command()
         exec_cmd.streaming_query_command.CopyFrom(cmd)
         (_, properties) = self._session.client.execute_command(exec_cmd)
         return cast(pb2.StreamingQueryCommandResult, properties["streaming_query_command_result"])
 
 
-# TODO(WIP) class StreamingQueryManager:
+# TODO(SPARK-43032) class StreamingQueryManager:
 
 
 def _test() -> None:
     import doctest
     import os
-    from pyspark.sql import SparkSession
-    import pyspark.sql.streaming.query
+    from pyspark.sql import SparkSession as PySparkSession
+    import pyspark.sql.connect.streaming.query
     from py4j.protocol import Py4JError
 
     os.chdir(os.environ["SPARK_HOME"])
 
-    globs = pyspark.sql.streaming.query.__dict__.copy()
-    try:
-        spark = SparkSession._getActiveSessionOrCreate()
-    except Py4JError:  # noqa: F821
-        spark = SparkSession(sc)  # type: ignore[name-defined] # noqa: F821
+    globs = pyspark.sql.connect.streaming.query.__dict__.copy()
 
-    globs["spark"] = spark
+    globs["spark"] = (
+        PySparkSession.builder.appName("sql.connect.streaming.query tests")
+        .remote("local[4]")
+        .getOrCreate()
+    )
 
     (failure_count, test_count) = doctest.testmod(
-        pyspark.sql.streaming.query,
+        pyspark.sql.connect.streaming.query,
         globs=globs,
         optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE | doctest.REPORT_NDIFF,
     )
@@ -167,7 +175,6 @@ def _test() -> None:
 
     if failure_count:
         sys.exit(-1)
-
 
 if __name__ == "__main__":
     _test()

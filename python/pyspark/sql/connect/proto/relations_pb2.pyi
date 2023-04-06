@@ -569,13 +569,17 @@ class SQL(google.protobuf.message.Message):
         KEY_FIELD_NUMBER: builtins.int
         VALUE_FIELD_NUMBER: builtins.int
         key: builtins.str
-        value: builtins.str
+        @property
+        def value(self) -> pyspark.sql.connect.proto.expressions_pb2.Expression.Literal: ...
         def __init__(
             self,
             *,
             key: builtins.str = ...,
-            value: builtins.str = ...,
+            value: pyspark.sql.connect.proto.expressions_pb2.Expression.Literal | None = ...,
         ) -> None: ...
+        def HasField(
+            self, field_name: typing_extensions.Literal["value", b"value"]
+        ) -> builtins.bool: ...
         def ClearField(
             self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]
         ) -> None: ...
@@ -585,17 +589,20 @@ class SQL(google.protobuf.message.Message):
     query: builtins.str
     """(Required) The SQL query."""
     @property
-    def args(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
-        """(Optional) A map of parameter names to string values that are parsed as
-        SQL literal expressions. For example, map keys: "rank", "name", "birthdate";
-        map values: "1", "'Steven'", "DATE'2023-03-21'". The fragments of string values
-        belonged to SQL comments are skipped while parsing.
-        """
+    def args(
+        self,
+    ) -> google.protobuf.internal.containers.MessageMap[
+        builtins.str, pyspark.sql.connect.proto.expressions_pb2.Expression.Literal
+    ]:
+        """(Optional) A map of parameter names to literal expressions."""
     def __init__(
         self,
         *,
         query: builtins.str = ...,
-        args: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        args: collections.abc.Mapping[
+            builtins.str, pyspark.sql.connect.proto.expressions_pb2.Expression.Literal
+        ]
+        | None = ...,
     ) -> None: ...
     def ClearField(
         self, field_name: typing_extensions.Literal["args", b"args", "query", b"query"]
@@ -677,7 +684,6 @@ class Read(google.protobuf.message.Message):
         OPTIONS_FIELD_NUMBER: builtins.int
         PATHS_FIELD_NUMBER: builtins.int
         PREDICATES_FIELD_NUMBER: builtins.int
-        STREAMING_TABLE_NAME_FIELD_NUMBER: builtins.int
         format: builtins.str
         """(Optional) Supported formats include: parquet, orc, text, json, parquet, csv, avro.
 
@@ -709,8 +715,6 @@ class Read(google.protobuf.message.Message):
 
             This is only supported by the JDBC data source.
             """
-        streaming_table_name: builtins.str
-        """(Optional) Source table name for a streaming read. Not used in batch read."""
         def __init__(
             self,
             *,
@@ -719,7 +723,6 @@ class Read(google.protobuf.message.Message):
             options: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
             paths: collections.abc.Iterable[builtins.str] | None = ...,
             predicates: collections.abc.Iterable[builtins.str] | None = ...,
-            streaming_table_name: builtins.str = ...,
         ) -> None: ...
         def HasField(
             self,
@@ -751,8 +754,6 @@ class Read(google.protobuf.message.Message):
                 b"predicates",
                 "schema",
                 b"schema",
-                "streaming_table_name",
-                b"streaming_table_name",
             ],
         ) -> None: ...
         @typing.overload
@@ -2572,7 +2573,7 @@ class WithWatermark(google.protobuf.message.Message):
     def input(self) -> global___Relation:
         """(Required) The input relation"""
     event_time: builtins.str
-    """(Required)"""
+    """(Required) Name of the column containing event time."""
     delay_threshold: builtins.str
     """(Required)"""
     def __init__(

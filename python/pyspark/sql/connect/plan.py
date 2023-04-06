@@ -479,12 +479,14 @@ class WithColumns(LogicalPlan):
 
 class WithWatermark(LogicalPlan):
     """Logical plan object for a WithWatermark operation."""
-    def __init__(self, child: Optional["LogicalPlan"], event_time: str,  delay_threshold: str):
+
+    def __init__(self, child: Optional["LogicalPlan"], event_time: str, delay_threshold: str):
         super().__init__(child)
         self._event_time = event_time
         self._delay_threshold = delay_threshold
 
     def plan(self, session: "SparkConnectClient") -> proto.Relation:
+        assert self._child is not None
         plan = self._create_proto_relation()
         plan.with_watermark.input.CopyFrom(self._child.plan(session))
         plan.with_watermark.event_time = self._event_time
@@ -964,13 +966,12 @@ class SubqueryAlias(LogicalPlan):
 
 
 class SQL(LogicalPlan):
-    def __init__(self, query: str, args: Optional[Dict[str, str]] = None) -> None:
+    def __init__(self, query: str, args: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(None)
 
         if args is not None:
             for k, v in args.items():
                 assert isinstance(k, str)
-                assert isinstance(v, str)
 
         self._query = query
         self._args = args
@@ -981,7 +982,7 @@ class SQL(LogicalPlan):
 
         if self._args is not None and len(self._args) > 0:
             for k, v in self._args.items():
-                plan.sql.args[k] = v
+                plan.sql.args[k].CopyFrom(LiteralExpression._from_value(v).to_plan(session).literal)
 
         return plan
 
@@ -990,7 +991,9 @@ class SQL(LogicalPlan):
         cmd.sql_command.sql = self._query
         if self._args is not None and len(self._args) > 0:
             for k, v in self._args.items():
-                cmd.sql_command.args[k] = v
+                cmd.sql_command.args[k].CopyFrom(
+                    LiteralExpression._from_value(v).to_plan(session).literal
+                )
         return cmd
 
 
@@ -1582,13 +1585,13 @@ class WriteOperationV2(LogicalPlan):
 class WriteStreamOperation(LogicalPlan):
     def __init__(self, child: "LogicalPlan") -> None:
         super(WriteStreamOperation, self).__init__(child)
-        self.write_op = proto.WriteStreamOperation()
+        self.write_op = proto.WriteStreamOperationStart()
 
     def command(self, session: "SparkConnectClient") -> proto.Command:
         assert self._child is not None
         self.write_op.input.CopyFrom(self._child.plan(session))
         cmd = proto.Command()
-        cmd.write_stream_operation.CopyFrom(self.write_op)
+        cmd.write_stream_operation_start.CopyFrom(self.write_op)
         return cmd
 
 

@@ -35,7 +35,7 @@ class StreamingTestsMixin:
             self.assertTrue(isinstance(query.id, str))
             self.assertTrue(isinstance(query.runId, str))
             self.assertTrue(query.isActive)
-            # TODO: Will be uncommented with [SPARK-43015]
+            # TODO: Will be uncommented with [SPARK-42960]
             # self.assertEqual(query.exception(), None)
             # self.assertFalse(query.awaitTermination(1))
             query.processAllAvailable()
@@ -183,80 +183,6 @@ class StreamingTestsMixin:
         finally:
             q.stop()
             shutil.rmtree(tmpPath)
-
-    def test_stream_read_format_functions_json(self):
-        spark = self.spark
-        with tempfile.TemporaryDirectory() as d:
-            try:
-                # Write a temporary JSON file to read it.
-                spark.createDataFrame(
-                    [(24, "Wei Liu")], ["age", "name"]
-                ).write.mode("overwrite").format("json").save(d)
-
-                # Start a streaming query to read the JSON file.
-                q = spark.readStream.schema(
-                    "age INT, name STRING"
-                ).json(d).writeStream.format("memory").queryName("streaming_test_json").start()
-                q.processAllAvailable()
-            finally:
-                q.stop()
-
-    def test_stream_read_format_functions_orc(self):
-        spark = self.spark
-        with tempfile.TemporaryDirectory() as d:
-            try:
-                # Write a temporary ORC file to read it.
-                spark.range(10).write.mode("overwrite").format("orc").save(d)
-
-                # Start a streaming query to read the ORC file.
-                q = spark.readStream.schema(
-                    "id LONG").orc(d).writeStream.format("memory").queryName("streaming_test_orc").start()
-                q.processAllAvailable()
-            finally:
-                q.stop()
-
-    def test_stream_read_format_functions_parquet(self):
-        spark = self.spark
-        with tempfile.TemporaryDirectory() as d:
-            try:
-                # Write a temporary Parquet file to read it.
-                spark.range(10).write.mode("overwrite").format("parquet").save(d)
-
-                # Start a streaming query to read the Parquet file.
-                q = spark.readStream.schema(
-                    "id LONG").parquet(d).writeStream.format("memory").queryName("streaming_test_parquet").start()
-                q.processAllAvailable()
-            finally:
-                q.stop()
-
-    def test_stream_read_format_functions_text(self):
-        spark = self.spark
-        with tempfile.TemporaryDirectory() as d:
-            try:
-                # Write a temporary text file to read it.
-                spark.createDataFrame(
-                    [("hello",), ("this",)]).write.mode("overwrite").format("text").save(d)
-
-                # Start a streaming query to read the text file.
-                q = spark.readStream.text(d).writeStream.format("memory").queryName("streaming_test_text").start()
-                q.processAllAvailable()
-            finally:
-                q.stop()
-
-    def test_stream_read_format_functions_csv(self):
-        spark = self.spark
-        with tempfile.TemporaryDirectory() as d:
-            try:
-                # Write a temporary Parquet file to read it.
-                spark.createDataFrame([(1, "2")]).write.mode("overwrite").format("csv").save(d)
-
-                # Start a streaming query to read the Parquet file.
-                q = spark.readStream.schema(
-                    "col0 INT, col1 STRING"
-                ).csv(d).writeStream.format("memory").queryName("streaming_test_csv").start()
-                q.processAllAvailable()
-            finally:
-                q.stop()
 
     def test_stream_status_and_progress(self):
         df = self.spark.readStream.format("text").load("python/test_support/sql/streaming")

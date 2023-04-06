@@ -19,7 +19,6 @@ from pyspark.sql.connect.utils import check_dependencies
 
 check_dependencies(__name__)
 
-import sys
 from typing import cast, overload, Callable, Dict, List, Optional, TYPE_CHECKING, Union
 
 from pyspark.sql.connect.plan import DataSource, LogicalPlan, WriteStreamOperation
@@ -36,12 +35,12 @@ if TYPE_CHECKING:
     from pyspark.sql.connect.session import SparkSession
     from pyspark.sql.connect._typing import OptionalPrimitiveType
     from pyspark.sql.connect.dataframe import DataFrame
+    from pyspark.sql._typing import SupportsProcess
 
 __all__ = ["DataStreamReader", "DataStreamWriter"]
 
 
 class DataStreamReader(OptionUtils):
-
     def __init__(self, client: "SparkSession") -> None:
         self._format: Optional[str] = None
         self._schema = ""
@@ -107,7 +106,7 @@ class DataStreamReader(OptionUtils):
             schema=self._schema,
             options=self._options,
             paths=[path] if path else None,
-            is_streaming=True
+            is_streaming=True,
         )
 
         return self._df(plan)
@@ -169,7 +168,6 @@ class DataStreamReader(OptionUtils):
 
     json.__doc__ = PySparkDataStreamReader.json.__doc__
 
-    # BEGIN_WEI_CHANGE
     def orc(
         self,
         path: str,
@@ -216,7 +214,7 @@ class DataStreamReader(OptionUtils):
             return self.load(path=path, format="parquet")
         else:
             raise TypeError("path can be only a single string")
-        
+
     parquet.__doc__ = PySparkDataStreamReader.parquet.__doc__
 
     def text(
@@ -237,9 +235,8 @@ class DataStreamReader(OptionUtils):
             return self.load(path=path, format="text")
         else:
             raise TypeError("path can be only a single string")
-        
+
     text.__doc__ = PySparkDataStreamReader.text.__doc__
-    # END_WEI_CHANGE
 
     def csv(
         self,
@@ -314,14 +311,13 @@ class DataStreamReader(OptionUtils):
 
     csv.__doc__ = PySparkDataStreamReader.csv.__doc__
 
-    # def table() TODO
+    # def table() TODO(SPARK-43042). Use Read(table_name) relation.
 
 
 DataStreamReader.__doc__ = PySparkDataStreamReader.__doc__
 
 
 class DataStreamWriter:
-
     def __init__(self, plan: "LogicalPlan", session: "SparkSession") -> None:
         self._session = session
         self._write_stream = WriteStreamOperation(plan)
@@ -340,18 +336,18 @@ class DataStreamWriter:
     format.__doc__ = PySparkDataStreamWriter.format.__doc__
 
     def option(self, key: str, value: "OptionalPrimitiveType") -> "DataStreamWriter":
-        self._write_proto.options[key] = to_str(value)
+        self._write_proto.options[key] = cast(str, to_str(value))
         return self
 
     option.__doc__ = PySparkDataStreamWriter.option.__doc__
-    
+
     def options(self, **options: "OptionalPrimitiveType") -> "DataStreamWriter":
         for k in options:
-            self.option(k, options[k])        
+            self.option(k, options[k])
         return self
 
     options.__doc__ = PySparkDataStreamWriter.options.__doc__
-    
+
     @overload
     def partitionBy(self, *cols: str) -> "DataStreamWriter":
         ...
@@ -363,7 +359,10 @@ class DataStreamWriter:
     def partitionBy(self, *cols: str) -> "DataStreamWriter":  # type: ignore[misc]
         if len(cols) == 1 and isinstance(cols[0], (list, tuple)):
             cols = cols[0]
-        self._write_proto.partitioning_cols = cast(List[str], cols)
+        # Clear any existing columns (if any).
+        while len(self._write_proto.partitioning_column_names) > 0:
+            self._write_proto.partitioning_column_names.pop()
+        self._write_proto.partitioning_column_names.extend(cast(List[str], cols))
         return self
 
     partitionBy.__doc__ = PySparkDataStreamWriter.partitionBy.__doc__
@@ -415,7 +414,7 @@ class DataStreamWriter:
         elif once is not None:
             if once is not True:
                 raise ValueError("Value for once must be True. Got: %s" % once)
-            self._write_proto.one_time = True
+            self._write_proto.once = True
 
         elif continuous is not None:
             if type(continuous) != str or len(continuous.strip()) == 0:
@@ -473,12 +472,14 @@ class DataStreamWriter:
         cmd = self._write_stream.command(self._session.client)
         (_, properties) = self._session.client.execute_command(cmd)
 
-        start_result = cast(pb2.StreamingQueryStartResult, properties["streaming_query_start_result"])
+        start_result = cast(
+            pb2.WriteStreamOperationStartResult, properties["write_stream_operation_start_result"]
+        )
         return StreamingQuery(
             session=self._session,
-            queryId=start_result.id,
-            runId=start_result.run_id,
-            name=start_result.name
+            queryId=start_result.query_id.id,
+            runId=start_result.query_id.run_id,
+            name=start_result.name,
         )
 
     def start(
@@ -492,6 +493,7 @@ class DataStreamWriter:
     ) -> StreamingQuery:
         return self._start_internal(
             path=path,
+            tableName=None,
             format=format,
             outputMode=outputMode,
             partitionBy=partitionBy,
@@ -511,6 +513,7 @@ class DataStreamWriter:
         **options: "OptionalPrimitiveType",
     ) -> StreamingQuery:
         return self._start_internal(
+            path=None,
             tableName=tableName,
             format=format,
             outputMode=outputMode,
@@ -523,17 +526,15 @@ class DataStreamWriter:
 
 
 def _test() -> None:
+    import sys
     import doctest
-    import os
-    from pyspark.sql import SparkSession
-    import pyspark.sql.streaming.readwriter
+    from pyspark.sql import SparkSession as PySparkSession
+    import pyspark.sql.connect.streaming.readwriter
 
-    os.chdir(os.environ["SPARK_HOME"])
-
-    globs = pyspark.sql.streaming.readwriter.__dict__.copy()
+    globs = pyspark.sql.connect.readwriter.__dict__.copy()
+    
     globs["spark"] = (
-        SparkSession.builder
-        .appName("sql.connect.streaming.readwriter tests")
+        PySparkSession.builder.appName("sql.connect.streaming.readwriter tests")
         .remote("local[4]")
         .getOrCreate()
     )
@@ -541,8 +542,11 @@ def _test() -> None:
     (failure_count, test_count) = doctest.testmod(
         pyspark.sql.connect.streaming.readwriter,
         globs=globs,
-        optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE | doctest.REPORT_NDIFF,
+        optionflags=doctest.ELLIPSIS
+        | doctest.NORMALIZE_WHITESPACE
+        | doctest.IGNORE_EXCEPTION_DETAIL,
     )
+
     globs["spark"].stop()
 
     if failure_count:
