@@ -280,13 +280,12 @@ private[sql] object ArrowConverters extends Logging {
       arrowBatchIter: Iterator[Array[Byte]],
       schema: StructType,
       timeZoneId: String,
-      errorOnDuplicatedFieldNames: Boolean,
       context: TaskContext)
       extends InternalRowIterator(arrowBatchIter, context) {
 
     override def nextBatch(): (Iterator[InternalRow], StructType) = {
       val arrowSchema =
-        ArrowUtils.toArrowSchema(schema, timeZoneId, errorOnDuplicatedFieldNames)
+        ArrowUtils.toArrowSchema(schema, timeZoneId, errorOnDuplicatedFieldNames = true)
       val root = VectorSchemaRoot.create(arrowSchema, allocator)
       resources.append(root)
       val arrowRecordBatch = ArrowConverters.loadBatch(arrowBatchIter.next(), allocator)
@@ -325,9 +324,8 @@ private[sql] object ArrowConverters extends Logging {
       arrowBatchIter: Iterator[Array[Byte]],
       schema: StructType,
       timeZoneId: String,
-      errorOnDuplicatedFieldNames: Boolean,
       context: TaskContext): Iterator[InternalRow] = new InternalRowIteratorWithoutSchema(
-    arrowBatchIter, schema, timeZoneId, errorOnDuplicatedFieldNames, context
+    arrowBatchIter, schema, timeZoneId, context
   )
 
   /**
@@ -387,7 +385,6 @@ private[sql] object ArrowConverters extends Logging {
             batchesInExecutors,
             schema,
             timezone,
-            errorOnDuplicatedFieldNames = false,
             TaskContext.get())
         }
       session.internalCreateDataFrame(rdd.setName("arrow"), schema)
@@ -397,7 +394,6 @@ private[sql] object ArrowConverters extends Logging {
         batchesInDriver.toIterator,
         schema,
         session.sessionState.conf.sessionLocalTimeZone,
-        errorOnDuplicatedFieldNames = false,
         TaskContext.get())
 
       // Project/copy it. Otherwise, the Arrow column vectors will be closed and released out.

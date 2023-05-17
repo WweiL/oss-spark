@@ -69,10 +69,6 @@ def _to_java_column(col: "ColumnOrName") -> JavaObject:
     return jcol
 
 
-def _to_java_expr(col: "ColumnOrName") -> JavaObject:
-    return _to_java_column(col).expr()
-
-
 def _to_seq(
     sc: SparkContext,
     cols: Iterable["ColumnOrName"],

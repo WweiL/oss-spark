@@ -21,30 +21,53 @@ from pyspark.testing.connectutils import ReusedConnectTestCase
 
 
 class CogroupedApplyInPandasTests(CogroupedApplyInPandasTestsMixin, ReusedConnectTestCase):
-    @unittest.skip("Fails in Spark Connect, should enable.")
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
     def test_different_group_key_cardinality(self):
-        self.check_different_group_key_cardinality()
+        super().test_different_group_key_cardinality()
 
-    @unittest.skip("Fails in Spark Connect, should enable.")
-    def test_wrong_args(self):
-        self.check_wrong_args()
-
-    def test_apply_in_pandas_not_returning_pandas_dataframe(self):
-        self.check_apply_in_pandas_not_returning_pandas_dataframe()
-
-    def test_apply_in_pandas_returning_wrong_column_names(self):
-        self.check_apply_in_pandas_returning_wrong_column_names()
-
-    def test_apply_in_pandas_returning_no_column_names_and_wrong_amount(self):
-        self.check_apply_in_pandas_returning_no_column_names_and_wrong_amount()
-
-    @unittest.skip("Fails in Spark Connect, should enable.")
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
     def test_apply_in_pandas_returning_incompatible_type(self):
-        self.check_apply_in_pandas_returning_incompatible_type()
+        super().test_apply_in_pandas_returning_incompatible_type()
 
-    @unittest.skip("Fails in Spark Connect, should enable.")
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
+    def test_wrong_args(self):
+        super().test_wrong_args()
+
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
+    def test_apply_in_pandas_not_returning_pandas_dataframe(self):
+        super().test_apply_in_pandas_not_returning_pandas_dataframe()
+
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
+    def test_apply_in_pandas_returning_wrong_column_names(self):
+        super().test_apply_in_pandas_returning_wrong_column_names()
+
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
+    def test_apply_in_pandas_returning_no_column_names_and_wrong_amount(self):
+        super().test_apply_in_pandas_returning_no_column_names_and_wrong_amount()
+
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
+    def test_apply_in_pandas_returning_incompatible_type(self):
+        super().test_apply_in_pandas_returning_incompatible_type()
+
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
     def test_wrong_return_type(self):
-        self.check_wrong_return_type()
+        super().test_wrong_return_type()
 
 
 if __name__ == "__main__":

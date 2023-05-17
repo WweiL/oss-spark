@@ -54,7 +54,7 @@ from pyspark.sql.connect.plan import SQL, Range, LocalRelation, CachedRelation
 from pyspark.sql.connect.readwriter import DataFrameReader
 from pyspark.sql.connect.streaming import DataStreamReader, StreamingQueryManager
 from pyspark.sql.pandas.serializers import ArrowStreamPandasSerializer
-from pyspark.sql.pandas.types import to_arrow_schema, to_arrow_type, _deduplicate_field_names
+from pyspark.sql.pandas.types import to_arrow_schema, to_arrow_type
 from pyspark.sql.session import classproperty, SparkSession as PySparkSession
 from pyspark.sql.types import (
     _infer_schema,
@@ -162,7 +162,11 @@ class SparkSession:
                 error_class="NOT_IMPLEMENTED", message_parameters={"feature": "enableHiveSupport"}
             )
 
-        def create(self) -> "SparkSession":
+        def getOrCreate(self) -> "SparkSession":
+            global _active_spark_session
+            if _active_spark_session is not None:
+                return _active_spark_session
+
             has_channel_builder = self._channel_builder is not None
             has_spark_remote = "spark.remote" in self._options
 
@@ -179,17 +183,11 @@ class SparkSession:
 
             if has_channel_builder:
                 assert self._channel_builder is not None
-                return SparkSession(connection=self._channel_builder)
+                _active_spark_session = SparkSession(connection=self._channel_builder)
             else:
                 spark_remote = to_str(self._options.get("spark.remote"))
                 assert spark_remote is not None
-                return SparkSession(connection=spark_remote)
-
-        def getOrCreate(self) -> "SparkSession":
-            global _active_spark_session
-            if _active_spark_session is not None:
-                return _active_spark_session
-            _active_spark_session = self.create()
+                _active_spark_session = SparkSession(connection=spark_remote)
             return _active_spark_session
 
     _client: SparkConnectClient
@@ -332,7 +330,7 @@ class SparkSession:
             # Determine arrow types to coerce data when creating batches
             arrow_schema: Optional[pa.Schema] = None
             if isinstance(schema, StructType):
-                arrow_schema = to_arrow_schema(cast(StructType, _deduplicate_field_names(schema)))
+                arrow_schema = to_arrow_schema(schema)
                 arrow_types = [field.type for field in arrow_schema]
                 _cols = [str(x) if not isinstance(x, str) else x for x in schema.fieldNames()]
             elif isinstance(schema, DataType):
@@ -363,9 +361,7 @@ class SparkSession:
 
             if isinstance(schema, StructType):
                 assert arrow_schema is not None
-                _table = _table.rename_columns(
-                    cast(StructType, _deduplicate_field_names(schema)).names
-                ).cast(arrow_schema)
+                _table = _table.rename_columns(schema.names).cast(arrow_schema)
 
         elif isinstance(data, np.ndarray):
             if _cols is None:
@@ -541,9 +537,7 @@ class SparkSession:
                 active_session.stop()
             with SparkContext._lock:
                 del os.environ["SPARK_LOCAL_REMOTE"]
-                del os.environ["SPARK_CONNECT_MODE_ENABLED"]
-                if "SPARK_REMOTE" in os.environ:
-                    del os.environ["SPARK_REMOTE"]
+                del os.environ["SPARK_REMOTE"]
 
     stop.__doc__ = PySparkSession.stop.__doc__
 

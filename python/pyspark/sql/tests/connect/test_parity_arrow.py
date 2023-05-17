@@ -109,9 +109,6 @@ class ArrowParityTests(ArrowTestsMixin, ReusedConnectTestCase):
     def test_toPandas_duplicate_field_names(self):
         self.check_toPandas_duplicate_field_names(True)
 
-    def test_createDataFrame_duplicate_field_names(self):
-        self.check_createDataFrame_duplicate_field_names(True)
-
     def test_toPandas_empty_columns(self):
         self.check_toPandas_empty_columns(True)
 

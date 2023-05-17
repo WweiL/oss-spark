@@ -24,8 +24,15 @@ from pyspark.testing.connectutils import ReusedConnectTestCase
 
 
 class PandasUDFParityTests(PandasUDFTestsMixin, ReusedConnectTestCase):
+    @unittest.skip(
+        "Spark Connect does not support sc._jvm.org.apache.log4j but the test depends on it."
+    )
     def test_udf_wrong_arg(self):
-        self.check_udf_wrong_arg()
+        super().test_udf_wrong_arg()
+
+    @unittest.skip("Spark Connect does not support spark.conf but the test depends on it.")
+    def test_pandas_udf_timestamp_ntz(self):
+        super().test_pandas_udf_timestamp_ntz()
 
     def test_pandas_udf_decorator_with_return_type_string(self):
         @pandas_udf("v double", PandasUDFType.GROUPED_MAP)
