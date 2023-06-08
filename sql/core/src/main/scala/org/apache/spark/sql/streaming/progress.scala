@@ -292,6 +292,10 @@ private object SafeJsonSerializer {
     if (value.isNaN || value.isInfinity) JNothing else JDouble(value)
   }
 
+  def safeOptionToJValue[T](value: Option[T], valueToJValue: T => JValue): JValue = {
+    value.map(valueToJValue).getOrElse(JNull) // TODO: JNothing or JNull?
+  }
+
   /** Convert map to JValue while handling empty maps. Also, this sorts the keys. */
   def safeMapToJValue[T](map: ju.Map[String, T], valueToJValue: T => JValue): JValue = {
     if (map.isEmpty) return JNothing
