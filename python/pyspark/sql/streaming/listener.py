@@ -151,7 +151,7 @@ class QueryStartedEvent:
 
     .. versionadded:: 3.4.0
     .. versionchanged:: 3.5.0
-        Add fromJSON constructor to support Spark Connect.
+        Add fromJson constructor to support Spark Connect.
 
     Notes
     -----
@@ -176,7 +176,7 @@ class QueryStartedEvent:
         )
 
     @classmethod
-    def fromJSON(cls, j: Dict[str, Any]) -> "QueryStartedEvent":
+    def fromJson(cls, j: Dict[str, Any]) -> "QueryStartedEvent":
         return cls(
             id=uuid.UUID(j["id"]),
             runId=uuid.UUID(j["runId"]),
@@ -221,7 +221,7 @@ class QueryProgressEvent:
 
     .. versionadded:: 3.4.0
     .. versionchanged:: 3.5.0
-        Add fromJSON constructor to support Spark Connect.
+        Add fromJson constructor to support Spark Connect.
 
     Notes
     -----
@@ -236,8 +236,8 @@ class QueryProgressEvent:
         return cls(progress=StreamingQueryProgress.fromJObject(jevent.progress()))
 
     @classmethod
-    def fromJSON(cls, j: Dict[str, Any]) -> "QueryProgressEvent":
-        return cls(progress=StreamingQueryProgress.fromJSON(j["progress"]))
+    def fromJson(cls, j: Dict[str, Any]) -> "QueryProgressEvent":
+        return cls(progress=StreamingQueryProgress.fromJson(j["progress"]))
 
     @property
     def progress(self) -> "StreamingQueryProgress":
@@ -272,7 +272,7 @@ class QueryIdleEvent:
         )
 
     @classmethod
-    def fromJSON(cls, j: Dict[str, Any]) -> "QueryIdleEvent":
+    def fromJson(cls, j: Dict[str, Any]) -> "QueryIdleEvent":
         return cls(id=uuid.UUID(j["id"]), runId=uuid.UUID(j["runId"]), timestamp=j["timestamp"])
 
     @property
@@ -305,7 +305,7 @@ class QueryTerminatedEvent:
 
     .. versionadded:: 3.4.0
     .. versionchanged:: 3.5.0
-        Add fromJSON constructor to support Spark Connect.
+        Add fromJson constructor to support Spark Connect.
 
     Notes
     -----
@@ -336,7 +336,7 @@ class QueryTerminatedEvent:
         )
 
     @classmethod
-    def fromJSON(cls, j: Dict[str, Any]) -> "QueryTerminatedEvent":
+    def fromJson(cls, j: Dict[str, Any]) -> "QueryTerminatedEvent":
         return cls(
             id=uuid.UUID(j["id"]),
             runId=uuid.UUID(j["runId"]),
@@ -388,7 +388,7 @@ class StreamingQueryProgress:
     """
     .. versionadded:: 3.4.0
     .. versionchanged:: 3.5.0
-        Add fromJSON constructor to support Spark Connect.
+        Add fromJson constructor to support Spark Connect.
 
     Notes
     -----
@@ -475,9 +475,9 @@ class StreamingQueryProgress:
             batchDuration=j["batchDuration"],
             durationMs=dict(j["durationMs"]),
             eventTime=dict(j["eventTime"]),
-            stateOperators=[StateOperatorProgress.fromJSON(s) for s in j["stateOperators"]],
-            sources=[SourceProgress.fromJSON(s) for s in j["sources"]],
-            sink=SinkProgress.fromJSON(j["sink"]),
+            stateOperators=[StateOperatorProgress.fromJson(s) for s in j["stateOperators"]],
+            sources=[SourceProgress.fromJson(s) for s in j["sources"]],
+            sink=SinkProgress.fromJson(j["sink"]),
             numInputRows=j["numInputRows"],
             inputRowsPerSecond=j["inputRowsPerSecond"],
             processedRowsPerSecond=j["processedRowsPerSecond"],
@@ -628,7 +628,7 @@ class StateOperatorProgress:
     """
     .. versionadded:: 3.4.0
     .. versionchanged:: 3.5.0
-        Add fromJSON constructor to support Spark Connect.
+        Add fromJson constructor to support Spark Connect.
 
     Notes
     -----
@@ -775,7 +775,7 @@ class SourceProgress:
     """
     .. versionadded:: 3.4.0
     .. versionchanged:: 3.5.0
-        Add fromJSON constructor to support Spark Connect.
+        Add fromJson constructor to support Spark Connect.
 
     Notes
     -----
@@ -821,7 +821,7 @@ class SourceProgress:
         )
 
     @classmethod
-    def fromJSON(cls, j: Dict[str, Any]) -> "SourceProgress":
+    def fromJson(cls, j: Dict[str, Any]) -> "SourceProgress":
         return cls(
             json=json.dumps(j),
             prettyJson=json.dumps(j, indent=4),
@@ -910,7 +910,7 @@ class SinkProgress:
     """
     .. versionadded:: 3.4.0
     .. versionchanged:: 3.5.0
-        Add fromJSON constructor to support Spark Connect.
+        Add fromJson constructor to support Spark Connect.
 
     Notes
     -----
@@ -942,7 +942,7 @@ class SinkProgress:
         )
 
     @classmethod
-    def fromJSON(cls, j: Dict[str, Any]) -> "SinkProgress":
+    def fromJson(cls, j: Dict[str, Any]) -> "SinkProgress":
         return cls(
             json=json.dumps(j),
             prettyJson=json.dumps(j, indent=4),
