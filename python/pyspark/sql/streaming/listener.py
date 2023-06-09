@@ -166,6 +166,8 @@ class QueryStartedEvent:
         self._name: Optional[str] = name
         self._timestamp: str = timestamp
 
+    # TODO: name null vs not set??
+
     @classmethod
     def fromJObject(cls, jevent: JavaObject) -> "QueryStartedEvent":
         return cls(
@@ -411,8 +413,8 @@ class StreamingQueryProgress:
         sources: List["SourceProgress"],
         sink: "SinkProgress",
         numInputRows: Optional[str],
-        inputRowsPerSecond: str,
-        processedRowsPerSecond: str,
+        inputRowsPerSecond: float,
+        processedRowsPerSecond: float,
         observedMetrics: Dict[str, Row],  # TODO: This?
     ):
         self._json: str = json
@@ -429,8 +431,8 @@ class StreamingQueryProgress:
         self._sources: List[SourceProgress] = sources
         self._sink: SinkProgress = sink
         self._numInputRows: Optional[str] = numInputRows
-        self._inputRowsPerSecond: str = inputRowsPerSecond
-        self._processedRowsPerSecond: str = processedRowsPerSecond
+        self._inputRowsPerSecond: float = inputRowsPerSecond
+        self._processedRowsPerSecond: float = processedRowsPerSecond
         self._observedMetrics: Dict[str, Row] = observedMetrics
 
     @classmethod
@@ -481,9 +483,9 @@ class StreamingQueryProgress:
             numInputRows=j["numInputRows"],
             inputRowsPerSecond=j["inputRowsPerSecond"],
             processedRowsPerSecond=j["processedRowsPerSecond"],
-            observedMetrics={  # TODO:
-                # k: cloudpickle.loads(jr)
-                # for k, jr in j["observedMetrics"].items()
+            observedMetrics={
+                k: Row(*row_dict.keys())(*row_dict.values())  # Assumes no nested rows
+                for k, row_dict in j["observedMetrics"].items()
             },
         )
 
@@ -593,14 +595,14 @@ class StreamingQueryProgress:
         return self._numInputRows
 
     @property
-    def inputRowsPerSecond(self) -> str:
+    def inputRowsPerSecond(self) -> float:
         """
         The aggregate (across all sources) rate of data arriving.
         """
         return self._inputRowsPerSecond
 
     @property
-    def processedRowsPerSecond(self) -> str:
+    def processedRowsPerSecond(self) -> float:
         """
         The aggregate (across all sources) rate at which Spark is processing data.
         """
@@ -611,14 +613,14 @@ class StreamingQueryProgress:
         """
         The compact JSON representation of this progress.
         """
-        return self._jprogress.json()
+        return self._json
 
     @property
     def prettyJson(self) -> str:
         """
         The pretty (i.e. indented) JSON representation of this progress.
         """
-        return self._jprogress.prettyJson()
+        return self._prettyJson
 
     def __str__(self) -> str:
         return self.prettyJson
@@ -818,6 +820,7 @@ class SourceProgress:
             numInputRows=jprogress.numInputRows(),
             inputRowsPerSecond=jprogress.inputRowsPerSecond(),
             processedRowsPerSecond=jprogress.processedRowsPerSecond(),
+            metrics=dict(jprogress.metrics())
         )
 
     @classmethod
@@ -825,14 +828,14 @@ class SourceProgress:
         return cls(
             json=json.dumps(j),
             prettyJson=json.dumps(j, indent=4),
-            description=j["description"],
-            startOffset=j["startOffset"],
-            endOffset=j["endOffset"],
-            latestOffset=j["latestOffset"],
+            description=str(j["description"]),
+            startOffset=str(j["startOffset"]),
+            endOffset=str(j["endOffset"]),
+            latestOffset=str(j["latestOffset"]),
             numInputRows=j["numInputRows"],
             inputRowsPerSecond=j["inputRowsPerSecond"],
             processedRowsPerSecond=j["processedRowsPerSecond"],
-            metrics=j["metrics"],
+            metrics=dict(j["metrics"]),
         )
 
     @property
@@ -893,14 +896,14 @@ class SourceProgress:
         """
         The compact JSON representation of this progress.
         """
-        return self._jprogress.json()
+        return self._json
 
     @property
     def prettyJson(self) -> str:
         """
         The pretty (i.e. indented) JSON representation of this progress.
         """
-        return self._jprogress.prettyJson()
+        return self._prettyJson
 
     def __str__(self) -> str:
         return self.prettyJson
@@ -975,14 +978,14 @@ class SinkProgress:
         """
         The compact JSON representation of this progress.
         """
-        return self._jprogress.json()
+        return self._json
 
     @property
     def prettyJson(self) -> str:
         """
         The pretty (i.e. indented) JSON representation of this progress.
         """
-        return self._jprogress.prettyJson()
+        return self._prettyJson
 
     def __str__(self) -> str:
         return self.prettyJson

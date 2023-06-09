@@ -19,6 +19,7 @@ import time
 import uuid
 from datetime import datetime
 
+from pyspark import Row
 from pyspark.sql.streaming import StreamingQueryListener
 from pyspark.sql.streaming.listener import (
     QueryStartedEvent,
@@ -51,7 +52,7 @@ class StreamingListenerTests(ReusedSQLTestCase):
             get_number_of_public_methods(
                 "org.apache.spark.sql.streaming.StreamingQueryListener$QueryStartedEvent"
             ),
-            14,
+            15,
             msg,
         )
         self.assertEquals(
@@ -139,6 +140,8 @@ class StreamingListenerTests(ReusedSQLTestCase):
 
     def check_progress_event(self, event):
         """Check QueryProgressEvent"""
+        print("-------------")
+        print(type(event))
         self.assertTrue(isinstance(event, QueryProgressEvent))
         self.check_streaming_query_progress(event.progress)
 
@@ -299,6 +302,125 @@ class StreamingListenerTests(ReusedSQLTestCase):
         self.spark.streams.removeListener(test_listener)
         self.assertEqual(num_listeners, len(self.spark.streams._jsqm.listListeners()))
 
+    def test_streaming_query_progress_fromJson(self):
+        progressJson = """
+            {
+              "id" : "00000000-0000-0001-0000-000000000001",
+              "runId" : "00000000-0000-0001-0000-000000000002",
+              "name" : "test",
+              "timestamp" : "2016-12-05T20:54:20.827Z",
+              "batchId" : 2,
+              "numInputRows" : 678,
+              "inputRowsPerSecond" : 10.0,
+              "processedRowsPerSecond" : 5.4,
+              "batchDuration": 5,
+              "durationMs" : {
+                "getBatch" : 0
+              },
+              "eventTime" : {},
+              "stateOperators" : [ {
+                "operatorName" : "op1",
+                "numRowsTotal" : 0,
+                "numRowsUpdated" : 1,
+                "allUpdatesTimeMs" : 1,
+                "numRowsRemoved" : 2,
+                "allRemovalsTimeMs" : 34,
+                "commitTimeMs" : 23,
+                "memoryUsedBytes" : 3,
+                "numRowsDroppedByWatermark" : 0,
+                "numShufflePartitions" : 2,
+                "numStateStoreInstances" : 2,
+                "customMetrics" : {
+                  "loadedMapCacheHitCount" : 1,
+                  "loadedMapCacheMissCount" : 0,
+                  "stateOnCurrentVersionSizeBytes" : 2
+                }
+              } ],
+              "sources" : [ {
+                "description" : "source",
+                "startOffset" : 123,
+                "endOffset" : 456,
+                "latestOffset" : 789,
+                "numInputRows" : 678,
+                "inputRowsPerSecond" : 10.0,
+                "processedRowsPerSecond" : 5.4,
+                "metrics": {}
+              } ],
+              "sink" : {
+                "description" : "sink",
+                "numOutputRows" : -1,
+                "metrics": {}
+              },
+              "observedMetrics" : {
+                "event1" : {
+                  "c1" : 1,
+                  "c2" : 3.0
+                },
+                "event2" : {
+                  "rc" : 1,
+                  "min_q" : "hello",
+                  "max_q" : "world"
+                }
+              }
+            }
+        """
+        progress = StreamingQueryProgress.fromJson(json.loads(progressJson))
+        self.check_streaming_query_progress(progress)
+        # checks for progress
+        self.assertTrue(progress.runId == uuid.UUID("00000000-0000-0001-0000-000000000002"))
+        self.assertTrue(progress.name == "test")
+        self.assertTrue(progress.timestamp == "2016-12-05T20:54:20.827Z")
+        self.assertTrue(progress.batchId == 2)
+        self.assertTrue(progress.numInputRows == 678)
+        self.assertTrue(progress.inputRowsPerSecond == 10.0)
+        self.assertTrue(progress.batchDuration == 5)
+        self.assertTrue(progress.durationMs == {"getBatch": 0})
+        self.assertTrue(progress.eventTime == {})
+        self.assertTrue(progress.observedMetrics == {
+            "event1": Row("c1", "c2")(1, 3.0),
+            "event2": Row("rc", "min_q", "max_q")(1, "hello", "world")
+        })
+
+        # Check stateOperators list
+        self.assertTrue(len(progress.stateOperators) == 1)
+        state_operator = progress.stateOperators[0]
+        self.assertTrue(isinstance(state_operator, StateOperatorProgress))
+        self.assertTrue(state_operator.operatorName == "op1")
+        self.assertTrue(state_operator.numRowsTotal == 0)
+        self.assertTrue(state_operator.numRowsUpdated == 1)
+        self.assertTrue(state_operator.allUpdatesTimeMs == 1)
+        self.assertTrue(state_operator.numRowsRemoved == 2)
+        self.assertTrue(state_operator.allRemovalsTimeMs == 34)
+        self.assertTrue(state_operator.commitTimeMs == 23)
+        self.assertTrue(state_operator.memoryUsedBytes == 3)
+        self.assertTrue(state_operator.numRowsDroppedByWatermark == 0)
+        self.assertTrue(state_operator.numShufflePartitions == 2)
+        self.assertTrue(state_operator.numStateStoreInstances == 2)
+        self.assertTrue(state_operator.customMetrics == {
+            "loadedMapCacheHitCount": 1,
+            "loadedMapCacheMissCount": 0,
+            "stateOnCurrentVersionSizeBytes": 2
+        })
+
+        # Check sources list
+        self.assertTrue(len(progress.sources) == 1)
+        source = progress.sources[0]
+        self.assertTrue(isinstance(source, SourceProgress))
+        self.assertTrue(source.description == "source")
+        self.assertTrue(source.startOffset == "123")
+        self.assertTrue(source.endOffset == "456")
+        self.assertTrue(source.latestOffset == "789")
+        self.assertTrue(source.numInputRows == 678)
+        self.assertTrue(source.inputRowsPerSecond == 10.0)
+        self.assertTrue(source.processedRowsPerSecond == 5.4)
+        self.assertTrue(source.metrics == {})
+
+        # Check sink
+        sink = progress.sink
+        self.assertTrue(isinstance(sink, SinkProgress))
+        self.assertTrue(sink.description == "sink")
+        self.assertTrue(sink.numOutputRows == -1)
+        self.assertTrue(sink.metrics == {})
 
 if __name__ == "__main__":
     import unittest
