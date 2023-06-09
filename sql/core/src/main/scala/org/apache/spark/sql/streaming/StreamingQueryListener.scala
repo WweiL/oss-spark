@@ -19,9 +19,9 @@ package org.apache.spark.sql.streaming
 
 import java.util.UUID
 
-import org.json4s.{JNull, JString}
-import org.json4s.JsonAST.{JNothing, JValue}
+import org.json4s.JsonAST.JValue
 import org.json4s.JsonDSL.{jobject2assoc, pair2Assoc}
+import org.json4s.JString
 import org.json4s.jackson.JsonMethods.{compact, render}
 
 import org.apache.spark.annotation.Evolving

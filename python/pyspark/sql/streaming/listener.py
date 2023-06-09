@@ -415,7 +415,7 @@ class StreamingQueryProgress:
         numInputRows: Optional[str],
         inputRowsPerSecond: float,
         processedRowsPerSecond: float,
-        observedMetrics: Dict[str, Row],  # TODO: This?
+        observedMetrics: Dict[str, Row]
     ):
         self._json: str = json
         self._prettyJson: str = prettyJson
@@ -450,9 +450,9 @@ class StreamingQueryProgress:
             batchDuration=jprogress.batchDuration(),
             durationMs=dict(jprogress.durationMs()),
             eventTime=dict(jprogress.eventTime()),
-            stateOperators=[StateOperatorProgress(js) for js in jprogress.stateOperators()],
-            sources=[SourceProgress(js) for js in jprogress.sources()],
-            sink=SinkProgress(jprogress.sink()),
+            stateOperators=[StateOperatorProgress.fromJObject(js) for js in jprogress.stateOperators()],
+            sources=[SourceProgress.fromJObject(js) for js in jprogress.sources()],
+            sink=SinkProgress.fromJObject(jprogress.sink()),
             numInputRows=jprogress.numInputRows(),
             inputRowsPerSecond=jprogress.inputRowsPerSecond(),
             processedRowsPerSecond=jprogress.processedRowsPerSecond(),
@@ -936,7 +936,7 @@ class SinkProgress:
 
     @classmethod
     def fromJObject(cls, jprogress: JavaObject) -> "SinkProgress":
-        cls(
+        return cls(
             json=jprogress.json(),
             prettyJson=jprogress.prettyJson(),
             description=jprogress.description(),

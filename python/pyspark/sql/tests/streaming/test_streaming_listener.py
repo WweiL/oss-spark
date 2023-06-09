@@ -66,7 +66,7 @@ class StreamingListenerTests(ReusedSQLTestCase):
             get_number_of_public_methods(
                 "org.apache.spark.sql.streaming.StreamingQueryListener$QueryTerminatedEvent"
             ),
-            14,
+            17,
             msg,
         )
         self.assertEquals(
@@ -140,8 +140,6 @@ class StreamingListenerTests(ReusedSQLTestCase):
 
     def check_progress_event(self, event):
         """Check QueryProgressEvent"""
-        print("-------------")
-        print(type(event))
         self.assertTrue(isinstance(event, QueryProgressEvent))
         self.check_streaming_query_progress(event.progress)
 
@@ -421,6 +419,10 @@ class StreamingListenerTests(ReusedSQLTestCase):
         self.assertTrue(sink.description == "sink")
         self.assertTrue(sink.numOutputRows == -1)
         self.assertTrue(sink.metrics == {})
+
+# TODO: STATEOPERATORS, START TERMINATED EVENTS, NONE
+# TODO: scala side
+
 
 if __name__ == "__main__":
     import unittest
