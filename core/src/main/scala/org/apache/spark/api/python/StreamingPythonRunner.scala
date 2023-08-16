@@ -109,7 +109,7 @@ private[spark] class StreamingPythonRunner(
    */
   def stop(): Unit = {
     pythonWorker.foreach { worker =>
-      SparkEnv.get.destroyPythonWorker(pythonExec, workerModule, envVars.asScala.toMap, worker)
+      pythonWorkerFactory.foreach(_.stopWorker(worker))
     }
   }
 }
