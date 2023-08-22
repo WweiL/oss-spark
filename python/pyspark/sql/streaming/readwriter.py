@@ -1528,6 +1528,19 @@ class DataStreamWriter:
         else:
             return self._sq(self._jwrite.start(path))
 
+    def table(self, tableName: str) -> StreamingQuery:
+        """
+        Alias for the toTable API
+
+        .. versionadded:: 4.0.0
+
+        Parameters
+        ----------
+        tableName : str
+            string, for the name of the table.
+        """
+        return self.toTable(tableName)
+
     def toTable(
         self,
         tableName: str,

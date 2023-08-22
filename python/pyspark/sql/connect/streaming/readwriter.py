@@ -563,6 +563,11 @@ class DataStreamWriter:
 
     start.__doc__ = PySparkDataStreamWriter.start.__doc__
 
+    def table(self, tableName: str) -> StreamingQuery:
+        return self.toTable(tableName)
+
+    table.__doc__ = PySparkDataStreamWriter.table.__doc__
+
     def toTable(
         self,
         tableName: str,

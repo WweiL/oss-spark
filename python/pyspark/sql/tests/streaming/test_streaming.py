@@ -382,6 +382,20 @@ class StreamingTestsMixin:
             result = self.spark.sql("SELECT value FROM output_table").collect()
             self.assertTrue(len(result) > 0)
 
+    def test_streaming_write_to_table_alternative(self):
+        with self.table("output_table"), tempfile.TemporaryDirectory() as tmpdir:
+            df = self.spark.readStream.format("rate").option("rowsPerSecond", 10).load()
+            q = (
+                df.writeStream.option("format", "parquet")
+                .option("checkpointLocation", tmpdir)
+                .table("output_table")
+            )
+            self.assertTrue(q.isActive)
+            time.sleep(10)
+            q.stop()
+            result = self.spark.sql("SELECT value FROM output_table").collect()
+            self.assertTrue(len(result) > 0)
+
 
 class StreamingTests(StreamingTestsMixin, ReusedSQLTestCase):
     pass
