@@ -29,7 +29,7 @@ from pyspark.errors import PySparkValueError
 
 class StreamingTestsMixin:
     def test_streaming_query_functions_basic(self):
-        df = self.spark.readStream.format("rate").option("rowsPerSecond", 10).load()
+        df = self.spark.readStream.format("text").load("python/test_support/sql/streaming")
         query = (
             df.writeStream.format("memory")
             .queryName("test_streaming_query_functions_basic")
@@ -78,6 +78,39 @@ class StreamingTestsMixin:
             error_thrown = True
 
         self.assertTrue(error_thrown)
+
+    def test_streaming_progress(self):
+        """
+        Should be able to access fields using attributes in lastProgress / recentProgress
+        e.g. q.lastProgress.id
+        """
+        df = self.spark.readStream.format("text").load("python/test_support/sql/streaming")
+        query = df.writeStream.format("noop").queryName("MyTestQuery").start()
+        try:
+            query.processAllAvailable()
+            lastProgress = query.lastProgress
+            recentProgress = query.recentProgress
+            self.assertEqual(lastProgress["name"], query.name)
+            self.assertEqual(lastProgress["id"], query.id)
+            self.assertTrue(any(p == lastProgress for p in recentProgress))
+            self.assertTrue(lastProgress["numInputRows"] == lastProgress["sources"][0]["numInputRows"])
+            self.assertTrue(lastProgress["inputRowsPerSecond"] == lastProgress["sources"][0]["inputRowsPerSecond"])
+            self.assertTrue(
+                lastProgress["processedRowsPerSecond"] == lastProgress["sources"][0]["processedRowsPerSecond"])
+            self.assertTrue(isinstance(lastProgress["sink"]["numOutputRows"], int))
+            # In Python, for historical reasons, changing field value
+            # in StreamingQueryProgress is allowed.
+            new_name = "myNewQuery"
+            lastProgress["name"] = new_name
+            self.assertEqual(lastProgress["name"], new_name)
+
+        except Exception as e:
+            self.fail(
+                "Streaming query functions sanity check shouldn't throw any error. "
+                "Error message: " + str(e)
+            )
+        finally:
+            query.stop()
 
     def test_stream_trigger(self):
         df = self.spark.readStream.format("text").load("python/test_support/sql/streaming")

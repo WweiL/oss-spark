@@ -114,7 +114,16 @@ class StreamingQuery:
         cmd = pb2.StreamingQueryCommand()
         cmd.recent_progress = True
         progress = self._execute_streaming_query_cmd(cmd).recent_progress.recent_progress_json
-        return [json.loads(p) for p in progress]
+        ret = []
+        for p_str in progress:
+            p = json.loads(p_str)
+            # Should rebuild numInputRows, inputRowsPerSecond, and processedRowsPerSecond
+            sources = p.get("sources", [])
+            p["numInputRows"] = sum(s.get("numInputRows", 0) for s in sources)
+            p["inputRowsPerSecond"] = sum(s.get("inputRowsPerSecond", 0.) for s in sources)
+            p["processedRowsPerSecond"] = sum(s.get("processedRowsPerSecond", 0.) for s in sources)
+            ret.append(p)
+        return ret
 
     recentProgress.__doc__ = PySparkStreamingQuery.recentProgress.__doc__
 
@@ -124,7 +133,13 @@ class StreamingQuery:
         cmd.last_progress = True
         progress = self._execute_streaming_query_cmd(cmd).recent_progress.recent_progress_json
         if len(progress) > 0:
-            return json.loads(progress[-1])
+            p = json.loads(progress[-1])
+            # Should rebuild numInputRows, inputRowsPerSecond, and processedRowsPerSecond
+            sources = p.get("sources", [])
+            p["numInputRows"] = sum(s.get("numInputRows", 0) for s in sources)
+            p["inputRowsPerSecond"] = sum(s.get("inputRowsPerSecond", 0.) for s in sources)
+            p["processedRowsPerSecond"] = sum(s.get("processedRowsPerSecond", 0.) for s in sources)
+            return p
         else:
             return None
 
